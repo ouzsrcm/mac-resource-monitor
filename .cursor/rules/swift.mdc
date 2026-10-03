@@ -1,0 +1,22 @@
+---
+description: MenuMonitor Swift/SwiftUI teknik çerçevesi
+alwaysApply: true
+---
+
+# MenuMonitor teknik çerçeve
+
+- Swift 6, SwiftUI, minimum macOS 14.
+- Proje XcodeGen ile yönetilir. Kökteki `project.yml` tek kaynaktır; `.xcodeproj`/`.pbxproj` dosyalarını asla elle oluşturma veya düzenleme, sadece `xcodegen generate` ile üret.
+- Menü bar için SwiftUI `MenuBarExtra` kullan (`.menuBarExtraStyle(.window)`). `NSStatusItem`/AppKit kurulumu yazma.
+- State için `@Observable` kullan; `ObservableObject` ve Combine kullanma.
+- Uygulama Dock'ta görünmemeli (`LSUIElement = true`).
+- Kod Swift 6 strict concurrency altında uyarısız derlenmeli.
+- Sistem API'lerinde (Mach, IOKit) her unsafe bloğu Türkçe yorumla açıkla.
+- Her metrik `Sources/Metrics` altında ayrı bir struct olsun.
+
+## Derleme
+
+```sh
+xcodegen generate
+xcodebuild -project MenuMonitor.xcodeproj -scheme MenuMonitor -configuration Debug -derivedDataPath build build
+```
