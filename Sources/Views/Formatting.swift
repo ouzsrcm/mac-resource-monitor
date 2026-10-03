@@ -30,30 +30,33 @@ enum Format {
         return formatted + "/s"
     }
 
-    /// Panel altındaki kendi tüketim satırı, ör. "MenuMonitor: %0.4 CPU · 31 MB".
+    /// Panel altındaki kendi tüketim satırı, ör. "MenuMonitor: %0,4 CPU · 31 MB".
     static func selfUsage(_ usage: SelfUsage) -> String {
-        String(format: "MenuMonitor: %%%.1f CPU · ", usage.cpu * 100) + bytes(usage.memory)
+        let cpu = (usage.cpu * 100).formatted(.number.precision(.fractionLength(1)))
+        return String(localized: "MenuMonitor: %\(cpu) CPU · \(bytes(usage.memory))")
     }
 
     /// Dakika cinsinden süre, ör. "3 sa 12 dk" veya "45 dk".
     static func minutes(_ total: Int) -> String {
         let hours = total / 60
         let minutes = total % 60
-        return hours > 0 ? "\(hours) sa \(minutes) dk" : "\(minutes) dk"
+        return hours > 0
+            ? String(localized: "\(hours) sa \(minutes) dk")
+            : String(localized: "\(minutes) dk")
     }
 
     /// Ayarlardaki aralık seçenekleri, ör. "0,5 sn" (yerel ondalık ayırıcıyla).
     static func seconds(_ value: Double) -> String {
-        "\(value.formatted()) sn"
+        String(localized: "\(value.formatted()) sn")
     }
 }
 
 extension MemoryPressure {
     var title: String {
         switch self {
-        case .normal: "Normal"
-        case .warning: "Uyarı"
-        case .critical: "Kritik"
+        case .normal: String(localized: "Normal")
+        case .warning: String(localized: "Uyarı")
+        case .critical: String(localized: "Kritik")
         }
     }
 }
@@ -61,11 +64,11 @@ extension MemoryPressure {
 extension ProcessInfo.ThermalState {
     var title: String {
         switch self {
-        case .nominal: "Normal"
-        case .fair: "Ilık"
-        case .serious: "Sıcak"
-        case .critical: "Kritik"
-        @unknown default: "Bilinmiyor"
+        case .nominal: String(localized: "Normal")
+        case .fair: String(localized: "Ilık")
+        case .serious: String(localized: "Sıcak")
+        case .critical: String(localized: "Kritik")
+        @unknown default: String(localized: "Bilinmiyor")
         }
     }
 }

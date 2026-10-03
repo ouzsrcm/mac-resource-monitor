@@ -14,11 +14,11 @@ enum AlertKind: String, CaseIterable, Identifiable, Sendable {
 
     var settingsTitle: String {
         switch self {
-        case .highCPU: "CPU 30 sn boyunca %90'ın üzerinde"
-        case .memoryPressure: "Bellek baskısı kritik"
-        case .thermal: "Termal durum Sıcak veya Kritik"
-        case .lowDiskSpace: "Disk boş alanı %10'un altında"
-        case .lowBattery: "Pil %15'in altında ve şarj olmuyor"
+        case .highCPU: String(localized: "CPU 30 sn boyunca %90'ın üzerinde")
+        case .memoryPressure: String(localized: "Bellek baskısı kritik")
+        case .thermal: String(localized: "Termal durum Sıcak veya Kritik")
+        case .lowDiskSpace: String(localized: "Disk boş alanı %10'un altında")
+        case .lowBattery: String(localized: "Pil %15'in altında ve şarj olmuyor")
         }
     }
 }
@@ -89,27 +89,29 @@ final class AlertEngine {
 
         if memory?.pressure == .critical, shouldFire(.memoryPressure, at: now) {
             post(.memoryPressure,
-                 title: "Bellek baskısı kritik",
-                 body: "Sistem belleği tükenmek üzere; bazı uygulamaları kapatmayı düşünün.")
+                 title: String(localized: "Bellek baskısı kritik"),
+                 body: String(localized: "Sistem belleği tükenmek üzere; bazı uygulamaları kapatmayı düşünün."))
         }
 
         if let thermal, thermal == .serious || thermal == .critical, shouldFire(.thermal, at: now) {
             post(.thermal,
-                 title: "Mac ısınıyor",
-                 body: "Termal durum: \(thermal.title). Sistem performansı düşürebilir.")
+                 title: String(localized: "Mac ısınıyor"),
+                 body: String(localized: "Termal durum: \(thermal.title). Sistem performansı düşürebilir."))
         }
 
         if let diskSpace, diskSpace.freeFraction < Self.diskFreeThreshold, shouldFire(.lowDiskSpace, at: now) {
+            let available = Format.dataSize(diskSpace.available)
+            let fraction = Format.percent(diskSpace.freeFraction)
             post(.lowDiskSpace,
-                 title: "Disk alanı azaldı",
-                 body: "Başlangıç diskinde \(Format.dataSize(diskSpace.available)) (\(Format.percent(diskSpace.freeFraction))) boş alan kaldı.")
+                 title: String(localized: "Disk alanı azaldı"),
+                 body: String(localized: "Başlangıç diskinde \(available) (\(fraction)) boş alan kaldı."))
         }
 
         if let battery, battery.level < Self.batteryThreshold, !battery.isCharging,
            shouldFire(.lowBattery, at: now) {
             post(.lowBattery,
-                 title: "Pil azaldı",
-                 body: "Pil seviyesi \(Format.percent(battery.level)); güç adaptörünü bağlayın.")
+                 title: String(localized: "Pil azaldı"),
+                 body: String(localized: "Pil seviyesi \(Format.percent(battery.level)); güç adaptörünü bağlayın."))
         }
     }
 
@@ -128,12 +130,13 @@ final class AlertEngine {
         // ölçüm yapıyoruz (panel kapalıyken süreç listesi tutulmuyor).
         Task { [weak self, sampler] in
             let top = await sampler.topCPUProcess()
-            var body = "İşlemci 30 saniyedir %90'ın üzerinde."
+            var body = String(localized: "İşlemci 30 saniyedir %90'ın üzerinde.")
             if let top {
                 let name = NSRunningApplication(processIdentifier: top.pid)?.localizedName ?? top.name
-                body += " En çok kullanan: \(name) (\(Format.precisePercent(top.cpu)))."
+                let usage = Format.precisePercent(top.cpu)
+                body += " " + String(localized: "En çok kullanan: \(name) (\(usage)).")
             }
-            self?.post(.highCPU, title: "Yüksek CPU kullanımı", body: body)
+            self?.post(.highCPU, title: String(localized: "Yüksek CPU kullanımı"), body: body)
         }
     }
 

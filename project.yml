@@ -1,6 +1,7 @@
 name: MenuMonitor
 options:
   bundleIdPrefix: tr.ouzsrcm
+  developmentLanguage: tr
   deploymentTarget:
     macOS: "14.0"
 targets:
@@ -14,10 +15,13 @@ targets:
       properties:
         LSUIElement: true
         CFBundleDisplayName: MenuMonitor
+        CFBundleLocalizations: [tr, en]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tr.ouzsrcm.MenuMonitor
         SWIFT_VERSION: "6.0"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
         CODE_SIGN_IDENTITY: "-"
         CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: YES

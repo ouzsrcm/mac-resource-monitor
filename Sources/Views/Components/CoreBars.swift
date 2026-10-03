@@ -6,9 +6,9 @@ struct CoreGroupView: View {
 
     private var title: String {
         switch group.kind {
-        case .performance: "Performans (P)"
-        case .efficiency: "Verimlilik (E)"
-        case .unified: "Çekirdekler"
+        case .performance: String(localized: "Performans (P)")
+        case .efficiency: String(localized: "Verimlilik (E)")
+        case .unified: String(localized: "Çekirdekler")
         }
     }
 

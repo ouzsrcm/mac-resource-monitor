@@ -26,8 +26,8 @@ enum ConnectionType: Sendable {
         switch self {
         case .wifi: "Wi-Fi"
         case .ethernet: "Ethernet"
-        case .other: "Diğer"
-        case .disconnected: "Yok"
+        case .other: String(localized: "Diğer")
+        case .disconnected: String(localized: "Yok")
         }
     }
 }

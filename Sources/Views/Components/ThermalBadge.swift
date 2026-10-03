@@ -27,6 +27,6 @@ struct ThermalBadge: View {
     let state: ProcessInfo.ThermalState?
 
     var body: some View {
-        StatusBadge(title: state?.title ?? "Bilinmiyor", color: state?.color ?? .gray)
+        StatusBadge(title: state?.title ?? String(localized: "Bilinmiyor"), color: state?.color ?? .gray)
     }
 }

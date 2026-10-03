@@ -13,9 +13,9 @@ struct MemoryBreakdownBar: View {
 
     private var segments: [Segment] {
         [
-            Segment(id: "Uygulama Belleği", bytes: stats.app, color: .blue),
-            Segment(id: "Kalıcı Bellek", bytes: stats.wired, color: .orange),
-            Segment(id: "Sıkıştırılmış", bytes: stats.compressed, color: .purple),
+            Segment(id: String(localized: "Uygulama Belleği"), bytes: stats.app, color: .blue),
+            Segment(id: String(localized: "Kalıcı Bellek"), bytes: stats.wired, color: .orange),
+            Segment(id: String(localized: "Sıkıştırılmış"), bytes: stats.compressed, color: .purple),
         ]
     }
 

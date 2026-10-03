@@ -3,12 +3,12 @@ import SwiftUI
 /// Tüm panellerin ortak iskeleti: başlık, içerik, ayraç ve "Çıkış" butonu.
 /// Görünürlüğünü `SamplingEngine`'e bildirerek uyarlanabilir örneklemeyi tetikler.
 struct PanelContainer<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let kind: PanelKind
     let engine: SamplingEngine
     @ViewBuilder let content: Content
 
-    init(title: String, kind: PanelKind, engine: SamplingEngine, @ViewBuilder content: () -> Content) {
+    init(title: LocalizedStringKey, kind: PanelKind, engine: SamplingEngine, @ViewBuilder content: () -> Content) {
         self.title = title
         self.kind = kind
         self.engine = engine
@@ -56,10 +56,10 @@ struct PanelContainer<Content: View>: View {
 }
 
 struct StatRow: View {
-    let title: String
+    let title: LocalizedStringKey
     let value: String
 
-    init(_ title: String, _ value: String) {
+    init(_ title: LocalizedStringKey, _ value: String) {
         self.title = title
         self.value = value
     }

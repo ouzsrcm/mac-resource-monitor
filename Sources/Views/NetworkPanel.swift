@@ -22,8 +22,8 @@ struct NetworkPanel: View {
                 }
 
                 RateHistoryChart(series: [
-                    RateSeries(name: "İndirme", color: Self.downloadColor, samples: engine.downloadHistory.elements),
-                    RateSeries(name: "Yükleme", color: Self.uploadColor, samples: engine.uploadHistory.elements),
+                    RateSeries(name: String(localized: "İndirme"), color: Self.downloadColor, samples: engine.downloadHistory.elements),
+                    RateSeries(name: String(localized: "Yükleme"), color: Self.uploadColor, samples: engine.uploadHistory.elements),
                 ])
             } else {
                 Text("Ölçülüyor…")

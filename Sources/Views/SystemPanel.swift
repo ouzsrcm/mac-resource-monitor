@@ -22,32 +22,21 @@ struct SystemPanel: View {
 private struct BatterySection: View {
     let battery: BatteryStatus
 
-    private var symbolName: String {
-        if battery.isCharging { return "battery.100percent.bolt" }
-        switch battery.level {
-        case ..<0.13: return "battery.0percent"
-        case ..<0.38: return "battery.25percent"
-        case ..<0.63: return "battery.50percent"
-        case ..<0.88: return "battery.75percent"
-        default: return "battery.100percent"
-        }
-    }
-
     private var tint: Color {
         if battery.isCharging { return .green }
         return battery.level < AlertEngine.batteryThreshold ? .red : .primary
     }
 
     private var status: String {
-        if battery.isCharging { return "Şarj oluyor" }
-        if battery.isPluggedIn { return "Adaptöre bağlı" }
-        return "Pil kullanılıyor"
+        if battery.isCharging { return String(localized: "Şarj oluyor") }
+        if battery.isPluggedIn { return String(localized: "Adaptöre bağlı") }
+        return String(localized: "Pil kullanılıyor")
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Image(systemName: symbolName)
+                Image(systemName: battery.symbolName)
                     .font(.title2)
                     .foregroundStyle(tint)
                 Text(Format.percent(battery.level))

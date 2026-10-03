@@ -36,14 +36,14 @@ struct DiskPanel: View {
                 }
 
                 RateHistoryChart(series: [
-                    RateSeries(name: "Okuma", color: Self.readColor, samples: engine.diskReadHistory.elements),
-                    RateSeries(name: "Yazma", color: Self.writeColor, samples: engine.diskWriteHistory.elements),
+                    RateSeries(name: String(localized: "Okuma"), color: Self.readColor, samples: engine.diskReadHistory.elements),
+                    RateSeries(name: String(localized: "Yazma"), color: Self.writeColor, samples: engine.diskWriteHistory.elements),
                 ])
             }
         }
     }
 
-    private func rate(title: String, value: Double, color: Color) -> some View {
+    private func rate(title: LocalizedStringKey, value: Double, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption)

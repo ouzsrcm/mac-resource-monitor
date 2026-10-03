@@ -24,7 +24,8 @@ Ayrıca:
   - Pil %15'in altında ve şarj olmuyor
 - **Süreç listesi:** Satıra sağ tıklayıp PID kopyalanabilir. Uygulamalar ikon ve adlarıyla gösterilir.
 - **Kendi tüketimi:** Her panelin altında MenuMonitor'ün kendi CPU ve bellek kullanımı görünür.
-- **Ayarlar penceresi:** Görünür öğeler, örnekleme aralıkları, uyarılar ve disk etiketi biçimi.
+- **Ayarlar penceresi:** Dil, menü bar görünümü, görünür öğeler, örnekleme aralıkları, uyarılar ve disk etiketi biçimi.
+- **Dil desteği:** Türkçe ve İngilizce. Varsayılan olarak sistem dilini izler; diğer sistem dillerinde İngilizce açılır.
 
 ## Gereksinimler
 
@@ -48,10 +49,16 @@ Gerçekçi performans ölçümü için `-configuration Release` ile derleyin. Uy
 
 Herhangi bir panelin altındaki **Ayarlar…** butonuyla açılır. Tüm ayarlar kalıcıdır (`UserDefaults`).
 
+- **Dil:** Sistem dili, Türkçe veya English. Değişiklik uygulama yeniden başlatınca geçerli olur (ayarlardaki **Yeniden Başlat** butonu).
+- **Menü bar:** Yalnızca ikon (varsayılan) veya ikon ve değer. Yalnızca ikon modunda da termometre termal duruma, pil ikonu doluluk ve şarj durumuna göre değişir.
 - **Görünür öğeler:** Beş menü bar öğesinin her biri ayrı ayrı gizlenebilir. Uygulama Dock'ta görünmediği için en az bir öğe açık kalmak zorundadır.
 - **Örnekleme:** Panel kapalıyken 1 / 2 / 3 / 5 sn, panel açıkken 0,5 / 1 / 2 sn.
 - **Uyarılar:** Her kural ayrı ayrı açılıp kapatılabilir.
-- **Disk etiketi:** Menü barda boş alan yüzdesi veya `R 12 MB/s W 3 MB/s` biçiminde okuma/yazma hızı.
+- **Disk etiketi:** "İkon ve değer" modunda menü barda boş alan yüzdesi veya `R 12 MB/s W 3 MB/s` biçiminde okuma/yazma hızı.
+
+### Çeviriler
+
+Metinler `Sources/Resources/Localizable.xcstrings` String Catalog'undadır. Kaynak dil Türkçedir: koddaki Türkçe metinler anahtar olarak kullanılır, katalogda yalnızca İngilizce karşılıklar tutulur. Yeni bir metin eklerken `Text("…")`, `String(localized: "…")` veya `LocalizedStringKey` parametresi kullanın ve İngilizce karşılığını kataloğa ekleyin.
 
 ## Mimari
 

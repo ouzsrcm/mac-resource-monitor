@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Başlık ve en çok kaynak tüketen süreçlerin satırları.
 struct ProcessList: View {
-    let title: String
+    let title: LocalizedStringKey
     let processes: [ProcessUsage]?
     let value: (ProcessUsage) -> String
 

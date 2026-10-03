@@ -7,8 +7,58 @@ enum DiskLabelMode: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .freeSpace: "Boş alan"
-        case .throughput: "Okuma/yazma hızı"
+        case .freeSpace: String(localized: "Boş alan")
+        case .throughput: String(localized: "Okuma/yazma hızı")
+        }
+    }
+}
+
+/// Menü bar öğelerinin yalnızca ikonla mı, ikon ve değerle mi gösterileceği.
+enum MenuBarLabelStyle: String, CaseIterable, Sendable {
+    case iconOnly
+    case iconAndValue
+
+    var title: String {
+        switch self {
+        case .iconOnly: String(localized: "Yalnızca ikon")
+        case .iconAndValue: String(localized: "İkon ve değer")
+        }
+    }
+}
+
+/// Arayüz dili. `system` dışındaki seçimler uygulamanın `AppleLanguages`
+/// tercihini değiştirir; Foundation bunu yalnızca açılışta okuduğu için
+/// değişiklik yeniden başlatınca geçerli olur.
+enum AppLanguage: String, CaseIterable, Sendable {
+    case system
+    case turkish = "tr"
+    case english = "en"
+
+    private static let appleLanguagesKey = "AppleLanguages"
+
+    /// Uygulama açılırken geçerli olan seçim; ayarlarda yeniden başlatma
+    /// gerekip gerekmediğini anlamak için kullanılır.
+    static let atLaunch = stored
+
+    static var stored: AppLanguage {
+        UserDefaults.standard.string(forKey: AppSettings.Key.appLanguage).flatMap(AppLanguage.init) ?? .system
+    }
+
+    /// Dil adları her zaman kendi dillerinde gösterilir.
+    var title: String {
+        switch self {
+        case .system: String(localized: "Sistem dili")
+        case .turkish: "Türkçe"
+        case .english: "English"
+        }
+    }
+
+    func apply() {
+        switch self {
+        case .system:
+            UserDefaults.standard.removeObject(forKey: Self.appleLanguagesKey)
+        case .turkish, .english:
+            UserDefaults.standard.set([rawValue], forKey: Self.appleLanguagesKey)
         }
     }
 }
@@ -24,6 +74,8 @@ enum AppSettings {
         static let idleInterval = "idleIntervalSeconds"
         static let activeInterval = "activeIntervalSeconds"
         static let diskLabelMode = "diskLabelMode"
+        static let menuBarLabelStyle = "menuBarLabelStyle"
+        static let appLanguage = "appLanguage"
 
         static func alertEnabled(_ kind: AlertKind) -> String {
             "alert.\(kind.rawValue)"
@@ -34,6 +86,7 @@ enum AppSettings {
     static let activeIntervalOptions: [Double] = [0.5, 1, 2]
     static let defaultIdleInterval: Double = 3
     static let defaultActiveInterval: Double = 1
+    static let defaultMenuBarLabelStyle = MenuBarLabelStyle.iconOnly
 
     /// `UserDefaults` okumalarının (`@AppStorage` dışında) da doğru
     /// varsayılanları görmesi için uygulama açılışında çağrılır.
@@ -42,6 +95,8 @@ enum AppSettings {
             Key.idleInterval: defaultIdleInterval,
             Key.activeInterval: defaultActiveInterval,
             Key.diskLabelMode: DiskLabelMode.freeSpace.rawValue,
+            Key.menuBarLabelStyle: defaultMenuBarLabelStyle.rawValue,
+            Key.appLanguage: AppLanguage.system.rawValue,
         ]
         for kind in AlertKind.allCases {
             defaults[Key.alertEnabled(kind)] = true

@@ -15,7 +15,7 @@ struct PressureBadge: View {
     let pressure: MemoryPressure?
 
     var body: some View {
-        StatusBadge(title: pressure?.title ?? "Bilinmiyor", color: pressure?.color ?? .gray)
+        StatusBadge(title: pressure?.title ?? String(localized: "Bilinmiyor"), color: pressure?.color ?? .gray)
     }
 }
 

@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage(AppSettings.Key.idleInterval) private var idleInterval = AppSettings.defaultIdleInterval
     @AppStorage(AppSettings.Key.activeInterval) private var activeInterval = AppSettings.defaultActiveInterval
     @AppStorage(AppSettings.Key.diskLabelMode) private var diskLabelMode = DiskLabelMode.freeSpace
+    @AppStorage(AppSettings.Key.menuBarLabelStyle) private var labelStyle = AppSettings.defaultMenuBarLabelStyle
+    @AppStorage(AppSettings.Key.appLanguage) private var language = AppLanguage.system
 
     private var visibleCount: Int {
         [showCPU, showRAM, showNetwork, showDisk, showSystem].filter { $0 }.count
@@ -20,6 +22,28 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Genel") {
+                Picker("Dil", selection: $language) {
+                    ForEach(AppLanguage.allCases, id: \.self) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                if language != AppLanguage.atLaunch {
+                    HStack {
+                        Text("Dil değişikliği yeniden başlatınca geçerli olur.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Yeniden Başlat") { relaunch() }
+                    }
+                }
+                Picker("Menü bar", selection: $labelStyle) {
+                    ForEach(MenuBarLabelStyle.allCases, id: \.self) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+            }
+
             Section {
                 visibilityToggle("İşlemci", isOn: $showCPU)
                 visibilityToggle("Bellek", isOn: $showRAM)
@@ -71,6 +95,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+                .disabled(labelStyle == .iconOnly)
             }
         }
         .formStyle(.grouped)
@@ -85,11 +110,23 @@ struct SettingsView: View {
         }
         .onChange(of: idleInterval) { engine.samplingSettingsDidChange() }
         .onChange(of: activeInterval) { engine.samplingSettingsDidChange() }
+        .onChange(of: language) { language.apply() }
     }
 
-    private func visibilityToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+    private func visibilityToggle(_ title: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
         Toggle(title, isOn: isOn)
             .disabled(isOn.wrappedValue && visibleCount == 1)
+    }
+
+    /// Yeni bir kopya başlatıp mevcut süreci sonlandırır; yeni kopya
+    /// `AppleLanguages` tercihini açılışta okur.
+    private func relaunch() {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        Task {
+            _ = try? await NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration)
+            NSApp.terminate(nil)
+        }
     }
 }
 
