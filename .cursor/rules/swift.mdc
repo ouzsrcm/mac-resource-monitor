@@ -19,6 +19,7 @@ alwaysApply: true
 - Örnekleme tek bir `SamplingEngine` döngüsünden (`Sources/Core/SamplingEngine.swift`) yapılır. Menü bar öğeleri veya paneller kendi Timer/Task'larını kurmaz.
 - Metrik okuyucular `Sources/Metrics` altında struct'tır ve `mutating func read() -> X?` desenini izler; delta gerektirenler önceki ölçümü kendi içinde saklar.
 - Metrik geçmişi `RingBuffer` (`Sources/Core/RingBuffer.swift`, kapasite 120) içinde tutulur.
+- Panel görünümleri `Sources/Views` altında, her panel kendi dosyasında; grafikler ve küçük bileşenler `Sources/Views/Components` altında.
 - Her panel görünür olduğunda `SamplingEngine.openPanelCount`'u günceller (onAppear'da artırır, onDisappear'da azaltır); örnekleme aralığı buna göre 3 sn / 1 sn olarak uyarlanır.
 
 ## Derleme

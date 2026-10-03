@@ -27,8 +27,9 @@ struct NetworkLabel: View {
     let engine: SamplingEngine
 
     var body: some View {
-        let download = engine.network.map { Format.rate($0.download) } ?? "–"
-        let upload = engine.network.map { Format.rate($0.upload) } ?? "–"
+        let throughput = engine.network?.throughput
+        let download = throughput.map { Format.rate($0.download) } ?? "–"
+        let upload = throughput.map { Format.rate($0.upload) } ?? "–"
         Text(verbatim: "↓\(download) ↑\(upload)")
             .monospacedDigit()
     }

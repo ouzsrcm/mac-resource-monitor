@@ -38,6 +38,8 @@ enum ConnectionType: Sendable {
 @Observable
 final class ConnectionMonitor {
     private(set) var type: ConnectionType = .disconnected
+    /// Aktif fiziksel arayüzün BSD adı, ör. "en0".
+    private(set) var interfaceName: String?
 
     @ObservationIgnored private let monitor = NWPathMonitor()
 
@@ -46,8 +48,10 @@ final class ConnectionMonitor {
         // açıkça @Sendable işaretliyoruz ve durumu ana aktöre aktarıyoruz.
         monitor.pathUpdateHandler = { @Sendable [weak self] path in
             let type = ConnectionType(path: path)
+            let interfaceName = Self.primaryInterfaceName(of: path)
             Task { @MainActor [weak self] in
                 self?.type = type
+                self?.interfaceName = interfaceName
             }
         }
         monitor.start(queue: DispatchQueue(label: "tr.ouzsrcm.MenuMonitor.path-monitor"))
@@ -55,5 +59,15 @@ final class ConnectionMonitor {
 
     deinit {
         monitor.cancel()
+    }
+
+    /// `availableInterfaces` tercih sırasındadır; VPN açıkken ilk sırada sanal
+    /// tünel (utun) olabileceği için önce Wi-Fi/Ethernet arayüzünü arıyoruz.
+    private nonisolated static func primaryInterfaceName(of path: NWPath) -> String? {
+        guard path.status == .satisfied else { return nil }
+        let physical = path.availableInterfaces.first {
+            $0.type == .wifi || $0.type == .wiredEthernet
+        }
+        return (physical ?? path.availableInterfaces.first)?.name
     }
 }

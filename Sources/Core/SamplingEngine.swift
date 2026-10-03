@@ -11,12 +11,18 @@ final class SamplingEngine {
     nonisolated static let activeInterval: Duration = .seconds(1)
 
     private(set) var cpu: CPUUsage?
+    private(set) var perCore: PerCoreCPUUsage?
     private(set) var memory: MemoryStats?
-    private(set) var network: NetworkThroughput?
+    private(set) var network: NetworkStats?
 
-    private(set) var cpuHistory = RingBuffer<CPUUsage>(capacity: SamplingEngine.historyCapacity)
-    private(set) var memoryHistory = RingBuffer<MemoryStats>(capacity: SamplingEngine.historyCapacity)
-    private(set) var networkHistory = RingBuffer<NetworkThroughput>(capacity: SamplingEngine.historyCapacity)
+    /// Toplam CPU kullanımı (0.0–1.0).
+    private(set) var cpuHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
+    /// Kullanılan bellek oranı (0.0–1.0).
+    private(set) var memoryHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
+    /// Byte/saniye.
+    private(set) var downloadHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
+    /// Byte/saniye.
+    private(set) var uploadHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
 
     let connection = ConnectionMonitor()
 
@@ -29,6 +35,7 @@ final class SamplingEngine {
     }
 
     @ObservationIgnored private var cpuMonitor = CPUMonitor()
+    @ObservationIgnored private var perCoreMonitor = PerCoreCPUMonitor()
     @ObservationIgnored private var memoryMonitor = MemoryMonitor()
     @ObservationIgnored private var networkMonitor = NetworkMonitor()
 
@@ -84,17 +91,24 @@ final class SamplingEngine {
     }
 
     private func sample() {
+        let now = Date()
         if let value = cpuMonitor.read() {
             cpu = value
-            cpuHistory.append(value)
+            cpuHistory.append(TimedSample(date: now, value: value.total))
+        }
+        if let value = perCoreMonitor.read() {
+            perCore = value
         }
         if let value = memoryMonitor.read() {
             memory = value
-            memoryHistory.append(value)
+            memoryHistory.append(TimedSample(date: now, value: value.usedFraction))
         }
         if let value = networkMonitor.read() {
             network = value
-            networkHistory.append(value)
+            if let throughput = value.throughput {
+                downloadHistory.append(TimedSample(date: now, value: throughput.download))
+                uploadHistory.append(TimedSample(date: now, value: throughput.upload))
+            }
         }
     }
 }

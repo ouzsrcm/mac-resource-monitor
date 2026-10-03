@@ -18,7 +18,7 @@ struct PanelContainer<Content: View>: View {
             Text(title)
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 12) {
                 content
             }
 

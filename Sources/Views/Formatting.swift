@@ -11,8 +11,14 @@ enum Format {
         String(format: "%.1f%%", fraction * 100)
     }
 
+    /// Bellek boyutları (1024 tabanlı).
     static func bytes(_ value: UInt64) -> String {
         Int64(clamping: value).formatted(.byteCount(style: .memory))
+    }
+
+    /// Aktarılan veri miktarı (1000 tabanlı, ağ hızlarıyla tutarlı).
+    static func dataSize(_ value: UInt64) -> String {
+        Int64(clamping: value).formatted(.byteCount(style: .file, spellsOutZero: false))
     }
 
     /// Byte/saniye değerini KB/s, MB/s, GB/s olarak otomatik birimle biçimlendirir.
