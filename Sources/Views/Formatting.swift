@@ -34,6 +34,18 @@ enum Format {
     static func selfUsage(_ usage: SelfUsage) -> String {
         String(format: "MenuMonitor: %%%.1f CPU · ", usage.cpu * 100) + bytes(usage.memory)
     }
+
+    /// Dakika cinsinden süre, ör. "3 sa 12 dk" veya "45 dk".
+    static func minutes(_ total: Int) -> String {
+        let hours = total / 60
+        let minutes = total % 60
+        return hours > 0 ? "\(hours) sa \(minutes) dk" : "\(minutes) dk"
+    }
+
+    /// Ayarlardaki aralık seçenekleri, ör. "0,5 sn" (yerel ondalık ayırıcıyla).
+    static func seconds(_ value: Double) -> String {
+        "\(value.formatted()) sn"
+    }
 }
 
 extension MemoryPressure {
@@ -42,6 +54,18 @@ extension MemoryPressure {
         case .normal: "Normal"
         case .warning: "Uyarı"
         case .critical: "Kritik"
+        }
+    }
+}
+
+extension ProcessInfo.ThermalState {
+    var title: String {
+        switch self {
+        case .nominal: "Normal"
+        case .fair: "Ilık"
+        case .serious: "Sıcak"
+        case .critical: "Kritik"
+        @unknown default: "Bilinmiyor"
         }
     }
 }

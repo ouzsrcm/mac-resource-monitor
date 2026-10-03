@@ -5,6 +5,8 @@ enum PanelKind: Sendable, Hashable {
     case cpu
     case memory
     case network
+    case disk
+    case system
 }
 
 /// Tüm metrik okuyucularını tek bir async döngüde sırayla çağırır ve
@@ -13,13 +15,18 @@ enum PanelKind: Sendable, Hashable {
 @Observable
 final class SamplingEngine {
     nonisolated static let historyCapacity = 120
-    nonisolated static let idleInterval: Duration = .seconds(3)
-    nonisolated static let activeInterval: Duration = .seconds(1)
+    /// Disk kapasitesi yavaş değişir ve okuması pahalıdır.
+    nonisolated static let diskSpaceInterval: Duration = .seconds(30)
 
     private(set) var cpu: CPUUsage?
     private(set) var perCore: PerCoreCPUUsage?
     private(set) var memory: MemoryStats?
     private(set) var network: NetworkStats?
+    private(set) var diskIO: DiskThroughput?
+    private(set) var diskSpace: DiskSpace?
+    private(set) var thermal: ProcessInfo.ThermalState?
+    /// Pili olmayan Mac'lerde nil.
+    private(set) var battery: BatteryStatus?
     /// Yalnızca CPU veya bellek paneli açıkken güncellenir; aksi halde nil.
     private(set) var processes: ProcessSnapshot?
     private(set) var selfUsage: SelfUsage?
@@ -32,8 +39,13 @@ final class SamplingEngine {
     private(set) var downloadHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
     /// Byte/saniye.
     private(set) var uploadHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
+    /// Byte/saniye.
+    private(set) var diskReadHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
+    /// Byte/saniye.
+    private(set) var diskWriteHistory = RingBuffer<TimedSample<Double>>(capacity: SamplingEngine.historyCapacity)
 
     let connection = ConnectionMonitor()
+    let alerts: AlertEngine
 
     /// Şu anda açık olan paneller. Paneller `panelDidAppear(_:)` /
     /// `panelDidDisappear(_:)` ile günceller.
@@ -42,7 +54,7 @@ final class SamplingEngine {
     var openPanelCount: Int { openPanels.count }
 
     var interval: Duration {
-        openPanels.isEmpty ? Self.idleInterval : Self.activeInterval
+        openPanels.isEmpty ? AppSettings.idleInterval : AppSettings.activeInterval
     }
 
     /// Süreç taraması pahalı olduğu için yalnızca süreç listesi gösteren
@@ -55,16 +67,28 @@ final class SamplingEngine {
     @ObservationIgnored private var perCoreMonitor = PerCoreCPUMonitor()
     @ObservationIgnored private var memoryMonitor = MemoryMonitor()
     @ObservationIgnored private var networkMonitor = NetworkMonitor()
+    @ObservationIgnored private var diskMonitor = DiskMonitor()
+    @ObservationIgnored private var thermalMonitor = ThermalMonitor()
+    @ObservationIgnored private var batteryMonitor = BatteryMonitor()
     @ObservationIgnored private var selfUsageMonitor = SelfUsageMonitor()
-    @ObservationIgnored private let processSampler = ProcessSampler()
+    @ObservationIgnored private let backgroundSampler: BackgroundSampler
 
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var pendingSleep: Task<Void, Never>?
+    @ObservationIgnored private var thermalUpdates: Task<Void, Never>?
     /// Devam eden arka plan süreç okuması; varken yenisi başlatılmaz.
     @ObservationIgnored private var processRead: Task<Void, Never>?
     @ObservationIgnored private var processResetPending = false
+    @ObservationIgnored private var diskSpaceRead: Task<Void, Never>?
+    @ObservationIgnored private var lastDiskSpaceRead: ContinuousClock.Instant?
 
     init() {
+        AppSettings.registerDefaults()
+        let backgroundSampler = BackgroundSampler()
+        self.backgroundSampler = backgroundSampler
+        alerts = AlertEngine(sampler: backgroundSampler)
+        alerts.requestAuthorization()
+
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 // `self`'i yalnızca senkron adımda güçlü tutuyoruz; beklerken
@@ -77,12 +101,26 @@ final class SamplingEngine {
                 }
             }
         }
+
+        // Termal durum değiştiğinde sonraki turu beklemeden örnek alıyoruz;
+        // böylece etiket ve uyarılar hemen güncellenir. Bu bir zamanlayıcı
+        // değil, yalnızca mevcut döngüyü erkene çeken bir tetikleyicidir.
+        thermalUpdates = Task { [weak self] in
+            let changes = NotificationCenter.default.notifications(
+                named: ProcessInfo.thermalStateDidChangeNotification
+            )
+            for await _ in changes {
+                self?.sampleNow()
+            }
+        }
     }
 
     deinit {
         loop?.cancel()
         pendingSleep?.cancel()
+        thermalUpdates?.cancel()
         processRead?.cancel()
+        diskSpaceRead?.cancel()
     }
 
     func panelDidAppear(_ kind: PanelKind) {
@@ -91,6 +129,18 @@ final class SamplingEngine {
 
     func panelDidDisappear(_ kind: PanelKind) {
         updateOpenPanels { $0.remove(kind) }
+    }
+
+    /// Ayarlardan örnekleme aralığı değiştiğinde yeni aralığın hemen
+    /// uygulanması için çağrılır.
+    func samplingSettingsDidChange() {
+        sampleNow()
+    }
+
+    /// Bekleyen uykuyu kesmek döngünün hemen örnek almasını ve güncel
+    /// aralıkla devam etmesini sağlar.
+    private func sampleNow() {
+        pendingSleep?.cancel()
     }
 
     private func updateOpenPanels(_ change: (inout Set<PanelKind>) -> Void) {
@@ -105,9 +155,7 @@ final class SamplingEngine {
             processResetPending = true
         }
         if interval != oldInterval || (needsProcesses && !neededProcesses) {
-            // Bekleyen uykuyu kesmek döngünün hemen örnek almasını ve
-            // yeni aralıkla devam etmesini sağlar.
-            pendingSleep?.cancel()
+            sampleNow()
         }
     }
 
@@ -141,10 +189,20 @@ final class SamplingEngine {
                 uploadHistory.append(TimedSample(date: now, value: throughput.upload))
             }
         }
+        if let value = diskMonitor.read() {
+            diskIO = value
+            diskReadHistory.append(TimedSample(date: now, value: value.read))
+            diskWriteHistory.append(TimedSample(date: now, value: value.write))
+        }
+        thermal = thermalMonitor.read()
+        battery = batteryMonitor.read()
         if let value = selfUsageMonitor.read() {
             selfUsage = value
         }
         startProcessReadIfNeeded()
+        startDiskSpaceReadIfNeeded()
+
+        alerts.evaluate(cpu: cpu, memory: memory, thermal: thermal, diskSpace: diskSpace, battery: battery)
     }
 
     private func startProcessReadIfNeeded() {
@@ -152,10 +210,10 @@ final class SamplingEngine {
         let reset = processResetPending
         processResetPending = false
 
-        // Task ana aktörde oluşur; `await` ile tarama ProcessSampler actor'ünde
+        // Task ana aktörde oluşur; `await` ile tarama BackgroundSampler actor'ünde
         // (ana thread dışında) yapılır ve sonuç yeniden ana aktöre döner.
-        processRead = Task { [weak self, processSampler] in
-            let snapshot = await processSampler.read(reset: reset)
+        processRead = Task { [weak self, backgroundSampler] in
+            let snapshot = await backgroundSampler.readProcesses(reset: reset)
             self?.finishProcessRead(snapshot)
         }
     }
@@ -165,5 +223,26 @@ final class SamplingEngine {
         // Okuma sürerken paneller kapandıysa sonucu atıyoruz.
         guard needsProcesses, let snapshot else { return }
         processes = snapshot
+    }
+
+    private func startDiskSpaceReadIfNeeded() {
+        let now = ContinuousClock.now
+        guard diskSpaceRead == nil else { return }
+        if let lastDiskSpaceRead, lastDiskSpaceRead.duration(to: now) < Self.diskSpaceInterval {
+            return
+        }
+        lastDiskSpaceRead = now
+
+        diskSpaceRead = Task { [weak self, backgroundSampler] in
+            let space = await backgroundSampler.readDiskSpace()
+            self?.finishDiskSpaceRead(space)
+        }
+    }
+
+    private func finishDiskSpaceRead(_ space: DiskSpace?) {
+        diskSpaceRead = nil
+        if let space {
+            diskSpace = space
+        }
     }
 }

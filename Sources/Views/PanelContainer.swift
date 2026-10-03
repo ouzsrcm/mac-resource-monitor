@@ -30,17 +30,26 @@ struct PanelContainer<Content: View>: View {
                 Button("Çıkış") {
                     NSApplication.shared.terminate(nil)
                 }
-                Spacer()
+                SettingsLink {
+                    Text("Ayarlar…")
+                }
+                // LSUIElement uygulamaları kendiliğinden etkinleşmez; etkinleştirmezsek
+                // ayarlar penceresi diğer uygulamaların arkasında açılır.
+                .simultaneousGesture(TapGesture().onEnded { NSApp.activate() })
+                Spacer(minLength: 4)
                 if let selfUsage = engine.selfUsage {
                     Text(Format.selfUsage(selfUsage))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
+            .controlSize(.small)
         }
         .padding(12)
-        .frame(width: 280, alignment: .leading)
+        .frame(width: 300, alignment: .leading)
         .onAppear { engine.panelDidAppear(kind) }
         .onDisappear { engine.panelDidDisappear(kind) }
     }

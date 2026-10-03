@@ -20,8 +20,10 @@ alwaysApply: true
 - Metrik okuyucular `Sources/Metrics` altında struct'tır ve `mutating func read() -> X?` desenini izler; delta gerektirenler önceki ölçümü kendi içinde saklar.
 - Metrik geçmişi `RingBuffer` (`Sources/Core/RingBuffer.swift`, kapasite 120) içinde tutulur.
 - Panel görünümleri `Sources/Views` altında, her panel kendi dosyasında; grafikler ve küçük bileşenler `Sources/Views/Components` altında.
-- Her panel görünürlüğünü `SamplingEngine.panelDidAppear(_:)` / `panelDidDisappear(_:)` ile `PanelKind` vererek bildirir (`PanelContainer` bunu yapar); motor açık panelleri `openPanels` kümesinde tutar. Örnekleme aralığı buna göre 3 sn / 1 sn olarak uyarlanır.
-- Pahalı okumalar (ör. `ProcessMonitor`) yalnızca ihtiyaç duyan paneller açıkken ve ana thread dışında (actor üzerinden) çalışır; sonuç MainActor'a taşınır.
+- Her panel görünürlüğünü `SamplingEngine.panelDidAppear(_:)` / `panelDidDisappear(_:)` ile `PanelKind` vererek bildirir (`PanelContainer` bunu yapar); motor açık panelleri `openPanels` kümesinde tutar. Örnekleme aralığı buna göre (ayarlardaki kapalı/açık aralıklar) uyarlanır.
+- Pahalı okumalar (`ProcessMonitor`, `DiskSpaceMonitor`) ana thread dışında `BackgroundSampler` actor'ü üzerinden çalışır; sonuç MainActor'a taşınır. Süreç taraması yalnızca ihtiyaç duyan paneller açıkken yapılır.
+- Kalıcı ayarların anahtarları ve varsayılanları `Sources/Core/AppSettings.swift` içindedir; `@AppStorage` bu anahtarları kullanır.
+- Uyarılar `AlertEngine` tarafından her örneklemede `SamplingEngine` içinden değerlendirilir.
 
 ## Derleme
 

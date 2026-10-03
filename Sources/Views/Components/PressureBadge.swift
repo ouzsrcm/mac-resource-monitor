@@ -14,14 +14,22 @@ extension MemoryPressure {
 struct PressureBadge: View {
     let pressure: MemoryPressure?
 
-    private var color: Color { pressure?.color ?? .gray }
+    var body: some View {
+        StatusBadge(title: pressure?.title ?? "Bilinmiyor", color: pressure?.color ?? .gray)
+    }
+}
+
+/// Renkli nokta ve başlıktan oluşan kapsül rozet.
+struct StatusBadge: View {
+    let title: String
+    let color: Color
 
     var body: some View {
         HStack(spacing: 4) {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
-            Text(pressure?.title ?? "Bilinmiyor")
+            Text(title)
                 .font(.caption.weight(.semibold))
         }
         .padding(.horizontal, 8)

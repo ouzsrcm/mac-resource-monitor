@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct NetworkPanel: View {
+    private static let downloadColor = Color.blue
+    private static let uploadColor = Color.orange
+
     let engine: SamplingEngine
 
     private var interfaceName: String? { engine.connection.interfaceName }
@@ -14,14 +17,14 @@ struct NetworkPanel: View {
         PanelContainer(title: "Ağ", kind: .network, engine: engine) {
             if let throughput = engine.network?.throughput {
                 HStack(spacing: 16) {
-                    rate(symbol: "arrow.down", value: throughput.download, color: NetworkHistoryChart.downloadColor)
-                    rate(symbol: "arrow.up", value: throughput.upload, color: NetworkHistoryChart.uploadColor)
+                    rate(symbol: "arrow.down", value: throughput.download, color: Self.downloadColor)
+                    rate(symbol: "arrow.up", value: throughput.upload, color: Self.uploadColor)
                 }
 
-                NetworkHistoryChart(
-                    download: engine.downloadHistory.elements,
-                    upload: engine.uploadHistory.elements
-                )
+                RateHistoryChart(series: [
+                    RateSeries(name: "İndirme", color: Self.downloadColor, samples: engine.downloadHistory.elements),
+                    RateSeries(name: "Yükleme", color: Self.uploadColor, samples: engine.uploadHistory.elements),
+                ])
             } else {
                 Text("Ölçülüyor…")
                     .foregroundStyle(.secondary)
