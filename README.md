@@ -30,10 +30,73 @@ Ayrıca:
 ## Gereksinimler
 
 - macOS 14 Sonoma veya üstü
-- Xcode 16+ (Swift 6)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
+- Apple Silicon (M serisi) Mac
+
+## Kurulum
+
+1. [Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) sayfasından `MenuMonitor-<sürüm>.zip` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
+2. Zip'i açın ve `MenuMonitor.app`'i `/Applications` klasörüne taşıyın.
+3. Uygulamayı açın.
+
+MenuMonitor Apple tarafından **notarize edilmemiştir** (ücretli Apple Developer hesabı gerektirir). Bu yüzden ilk açılışta macOS uygulamanın doğrulanamadığı konusunda uyarır. Uygulamayı bir kez onayladıktan sonra uyarı tekrar çıkmaz.
+
+**macOS 15 Sequoia ve sonrası:**
+
+1. Uygulamayı açmayı deneyin; çıkan uyarıyı **Bitti** ile kapatın.
+2. **Sistem Ayarları > Gizlilik ve Güvenlik** bölümünü açın.
+3. En alttaki Güvenlik kısmında MenuMonitor için görünen **Yine de Aç** düğmesine basın ve onaylayın.
+
+**macOS 14 Sonoma:**
+
+1. Finder'da `MenuMonitor.app`'e sağ tıklayın (veya Control tuşuyla tıklayın) ve **Aç**'ı seçin.
+2. Açılan pencerede tekrar **Aç**'a basın.
+
+### Gelişmiş
+
+İleri kullanıcılar Gatekeeper uyarısını Terminal'den de atlayabilir:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/MenuMonitor.app
+```
+
+> **Uyarı:** Bu komut, macOS'un internetten indirilen dosyalara eklediği "karantina" işaretini kaldırır. Gatekeeper bu uygulamayı artık hiç kontrol etmez ve sizi uyarmaz. Yalnızca dosyayı aşağıdaki adımlarla doğruladıktan sonra ve ne yaptığınızdan eminseniz kullanın.
+
+## İndirdiğin dosyayı doğrula
+
+Release dosyaları kaynak koddan GitHub Actions üzerinde derlenir (`.github/workflows/release.yml`). İndirdiğiniz dosyayı iki şekilde doğrulayabilirsiniz.
+
+**Checksum:** Zip ile aynı release'teki `SHA256SUMS.txt` dosyasını aynı klasöre indirip çalıştırın:
+
+```sh
+shasum -a 256 -c SHA256SUMS.txt
+```
+
+**Köken doğrulaması** ([GitHub CLI](https://cli.github.com) gerekir):
+
+```sh
+gh attestation verify MenuMonitor-<sürüm>.zip --repo ouzsrcm/mac-resource-monitor
+```
+
+Checksum tek başına yalnızca dosyanın indirme sırasında bozulmadığını gösterir; dosyayı değiştiren biri checksum'ı da değiştirebilir. Attestation ise zip'in bu repodaki belirli bir commit'ten, GitHub Actions'ta derlendiğini kriptografik olarak kanıtlar. Komut başarılı olursa çıktıda hangi commit ve workflow ile derlendiği görünür.
+
+## Gizlilik
+
+MenuMonitor internete bağlanmaz, telemetri toplamaz ve hiçbir veriyi dışarı göndermez. Tüm ölçümler yerel sistem API'lerinden okunur ve yalnızca bellekte tutulur; uygulama kapanınca silinir. Diskte saklanan tek şey ayarlarınızdır (`UserDefaults`). Uyarılar yerel bildirim olarak gösterilir.
+
+Ağ panelindeki bağlantı türü bilgisi `NWPathMonitor` ile okunur. Bu API yalnızca sistemin mevcut bağlantı durumunu bildirir, ağ üzerinden veri göndermez.
+
+## Neden App Sandbox kapalı
+
+Süreç listesi için başka süreçlerin CPU ve bellek kullanımını okumak gerekir (`proc_pid_rusage`). App Sandbox içinde başka süreçlerin bilgilerine erişim engellendiği için sandbox kapalıdır.
+
+MenuMonitor yalnızca okuma yapar: sistemde değişiklik yapmaz, süreç sonlandırmaz ve başka süreçlere müdahale etmez. Hardened runtime açıktır.
 
 ## Derleme ve çalıştırma
+
+Kaynak koddan derlemek için:
+
+- Xcode 16+ (Swift 6)
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
 
 Xcode projesi depoda tutulmaz; `project.yml` dosyasından üretilir.
 

@@ -1,0 +1,130 @@
+name: Release
+
+# Yalnızca v* tag push'larında çalışır. Fork'lardan gelen kodun bu workflow'u
+# tetikleyememesi için pull_request / pull_request_target / workflow_run yoktur.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Varsayılan olarak hiçbir yetki verilmez; gerekenler job seviyesinde açılır.
+permissions: {}
+
+defaults:
+  run:
+    # Açık "shell: bash" verildiğinde GitHub "-eo pipefail" ile çalıştırır;
+    # böylece pipe içindeki hatalar da adımı başarısız yapar.
+    shell: bash
+
+jobs:
+  release:
+    name: Derle, doğrula ve taslak release oluştur
+    # macos-15 Apple Silicon (arm64) runner'dır.
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write      # Release oluşturup dosya yüklemek için
+      id-token: write      # Sigstore ile attestation imzalamak için OIDC token
+      attestations: write  # Attestation'ı repoya kaydetmek için
+    env:
+      APP_PATH: build/Build/Products/Release/MenuMonitor.app
+
+    steps:
+      # Kaynak kodu al. Token diske yazılmasın diye persist-credentials kapalı;
+      # sonraki adımlar git ile kimlik doğrulaması gerektirmez.
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      # Xcode projesi depoda tutulmaz; project.yml'dan XcodeGen ile üretilir.
+      - name: XcodeGen kur ve projeyi üret
+        run: |
+          brew install xcodegen
+          xcodegen --version
+          xcodegen generate
+
+      # Tag'den sürümü çıkar (v1.2.0 -> 1.2.0). CFBundleShortVersionString yalnızca
+      # noktayla ayrılmış sayılar kabul ettiği için biçim burada doğrulanır.
+      - name: Sürümü tag'den çıkar
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' vX.Y.Z biçiminde değil."
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ZIP_NAME=MenuMonitor-$VERSION.zip" >> "$GITHUB_ENV"
+          echo "Sürüm: $VERSION"
+
+      # Hangi Xcode/Swift ile derlendiğini loga yaz; tekrar üretilebilirlik için gerekli.
+      - name: Araç sürümlerini yazdır
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # Release derlemesi. Sürüm ve build numarası komut satırından verilir;
+      # Info.plist bu değerleri $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION) ile okur.
+      # Uygulama ad-hoc imzalanır (CODE_SIGN_IDENTITY="-"), hardened runtime project.yml'dan açıktır.
+      - name: Release derlemesi
+        run: |
+          xcodebuild \
+            -project MenuMonitor.xcodeproj \
+            -scheme MenuMonitor \
+            -configuration Release \
+            -derivedDataPath build \
+            -arch arm64 \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      # İmzanın geçerli olduğunu ve hardened runtime'ın açık olduğunu doğrula.
+      # codesign -dv çıktısı stderr'e yazar; loga düşmesi için stdout'a yönlendirilir.
+      - name: İmzayı doğrula
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          codesign -dv --verbose=4 "$APP_PATH" 2>&1 | tee codesign-info.txt
+          if ! grep -Eq '^CodeDirectory .*flags=.*runtime' codesign-info.txt; then
+            echo "::error::Hardened runtime açık değil."
+            exit 1
+          fi
+          /usr/libexec/PlistBuddy \
+            -c "Print CFBundleShortVersionString" \
+            -c "Print CFBundleVersion" \
+            "$APP_PATH/Contents/Info.plist"
+
+      # .app paketini zip'le. ditto, macOS'a özgü öznitelikleri ve sembolik
+      # bağlantıları koruduğu için zip yerine kullanılır.
+      - name: Paketle
+        run: |
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_NAME"
+          ls -l "$ZIP_NAME"
+
+      # Kullanıcıların indirdiği dosyanın bozulmadığını kontrol edebilmesi için SHA-256 özeti.
+      - name: Checksum üret
+        run: |
+          shasum -a 256 "$ZIP_NAME" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Zip'in bu repodaki bu commit'ten GitHub Actions'ta derlendiğini kanıtlayan
+      # imzalı köken kaydı (SLSA build provenance). Doğrulama: gh attestation verify.
+      - name: Köken kanıtı (attestation) üret
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: ${{ env.ZIP_NAME }}
+
+      # Taslak release oluştur ve dosyaları yükle. Release notu elle yazılıp
+      # yayınlanacağı için not boş bırakılır; --verify-tag tag'in var olduğunu doğrular.
+      - name: Taslak release oluştur
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$ZIP_NAME" \
+            SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MenuMonitor $VERSION" \
+            --notes "" \
+            --draft \
+            --verify-tag
