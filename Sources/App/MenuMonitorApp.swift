@@ -2,39 +2,32 @@ import SwiftUI
 
 @main
 struct MenuMonitorApp: App {
-    @State private var store = SystemStatsStore()
+    @State private var engine = SamplingEngine()
+
+    @AppStorage("showCPU") private var showCPU = true
+    @AppStorage("showRAM") private var showRAM = true
+    @AppStorage("showNetwork") private var showNetwork = true
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuPanel(store: store)
+        MenuBarExtra(isInserted: $showCPU) {
+            CPUPanel(engine: engine)
         } label: {
-            Text("CPU \(Int((store.cpu * 100).rounded()))%")
-                .monospacedDigit()
+            CPULabel(engine: engine)
         }
         .menuBarExtraStyle(.window)
-    }
-}
 
-private struct MenuPanel: View {
-    let store: SystemStatsStore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("CPU")
-                Spacer()
-                Text(String(format: "%.1f%%", store.cpu * 100))
-                    .monospacedDigit()
-            }
-            .font(.headline)
-
-            Divider()
-
-            Button("Çıkış") {
-                NSApplication.shared.terminate(nil)
-            }
+        MenuBarExtra(isInserted: $showRAM) {
+            MemoryPanel(engine: engine)
+        } label: {
+            MemoryLabel(engine: engine)
         }
-        .padding(12)
-        .frame(width: 220)
+        .menuBarExtraStyle(.window)
+
+        MenuBarExtra(isInserted: $showNetwork) {
+            NetworkPanel(engine: engine)
+        } label: {
+            NetworkLabel(engine: engine)
+        }
+        .menuBarExtraStyle(.window)
     }
 }

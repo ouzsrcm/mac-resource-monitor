@@ -1,6 +1,14 @@
 import Darwin
 
-/// Sistem genelindeki toplam CPU kullanımını Mach çekirdek API'si ile ölçer.
+/// Bir ölçüm aralığındaki CPU kullanımı. Tüm değerler 0.0–1.0 arasıdır.
+struct CPUUsage: Sendable, Equatable {
+    var total: Double
+    /// Kullanıcı modunda geçen süre (düşük öncelikli "nice" süreçler dahil).
+    var user: Double
+    var system: Double
+}
+
+/// Sistem genelindeki CPU kullanımını Mach çekirdek API'si ile ölçer.
 ///
 /// Çekirdek, açılıştan beri her CPU durumunda (user, system, idle, nice)
 /// geçen süreyi "tick" sayacı olarak tutar. Tek bir okuma anlamlı değildir;
@@ -14,9 +22,10 @@ struct CPUMonitor {
     /// Bir önceki ölçüm; fark hesabı için gerekli. İlk çağrıdan önce nil.
     private var previous: host_cpu_load_info?
 
-    /// 0.0–1.0 arası toplam CPU kullanımı. İlk çağrıda (karşılaştırılacak
-    /// önceki ölçüm olmadığı için) veya okuma başarısız olursa nil döner.
-    mutating func read() -> Double? {
+    /// Son ölçümden bu yana geçen aralıktaki kullanım. İlk çağrıda
+    /// (karşılaştırılacak önceki ölçüm olmadığı için) veya okuma başarısız
+    /// olursa nil döner.
+    mutating func read() -> CPUUsage? {
         guard let current = sample() else { return nil }
         defer { previous = current }
         guard let previous else { return nil }
@@ -37,10 +46,15 @@ struct CPUMonitor {
         let nice = current.cpu_ticks.3 &- previous.cpu_ticks.3
 
         // Toplamayı Double'da yapıyoruz ki UInt32 toplamı da taşmasın.
-        let busy = Double(user) + Double(system) + Double(nice)
-        let total = busy + Double(idle)
-        guard total > 0 else { return 0 }
-        return busy / total
+        let userTicks = Double(user) + Double(nice)
+        let systemTicks = Double(system)
+        let total = userTicks + systemTicks + Double(idle)
+        guard total > 0 else { return CPUUsage(total: 0, user: 0, system: 0) }
+        return CPUUsage(
+            total: (userTicks + systemTicks) / total,
+            user: userTicks / total,
+            system: systemTicks / total
+        )
     }
 
     /// Çekirdekten anlık tick sayaçlarını okur.
