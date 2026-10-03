@@ -4,11 +4,13 @@ import SwiftUI
 /// Görünürlüğünü `SamplingEngine`'e bildirerek uyarlanabilir örneklemeyi tetikler.
 struct PanelContainer<Content: View>: View {
     let title: String
+    let kind: PanelKind
     let engine: SamplingEngine
     @ViewBuilder let content: Content
 
-    init(title: String, engine: SamplingEngine, @ViewBuilder content: () -> Content) {
+    init(title: String, kind: PanelKind, engine: SamplingEngine, @ViewBuilder content: () -> Content) {
         self.title = title
+        self.kind = kind
         self.engine = engine
         self.content = content()
     }
@@ -24,14 +26,23 @@ struct PanelContainer<Content: View>: View {
 
             Divider()
 
-            Button("Çıkış") {
-                NSApplication.shared.terminate(nil)
+            HStack {
+                Button("Çıkış") {
+                    NSApplication.shared.terminate(nil)
+                }
+                Spacer()
+                if let selfUsage = engine.selfUsage {
+                    Text(Format.selfUsage(selfUsage))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
             }
         }
         .padding(12)
         .frame(width: 280, alignment: .leading)
-        .onAppear { engine.panelDidAppear() }
-        .onDisappear { engine.panelDidDisappear() }
+        .onAppear { engine.panelDidAppear(kind) }
+        .onDisappear { engine.panelDidDisappear(kind) }
     }
 }
 

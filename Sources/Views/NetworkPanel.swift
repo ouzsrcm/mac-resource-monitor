@@ -11,7 +11,7 @@ struct NetworkPanel: View {
     }
 
     var body: some View {
-        PanelContainer(title: "Ağ", engine: engine) {
+        PanelContainer(title: "Ağ", kind: .network, engine: engine) {
             if let throughput = engine.network?.throughput {
                 HStack(spacing: 16) {
                     rate(symbol: "arrow.down", value: throughput.download, color: NetworkHistoryChart.downloadColor)

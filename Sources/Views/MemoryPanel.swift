@@ -4,7 +4,7 @@ struct MemoryPanel: View {
     let engine: SamplingEngine
 
     var body: some View {
-        PanelContainer(title: "Bellek", engine: engine) {
+        PanelContainer(title: "Bellek", kind: .memory, engine: engine) {
             if let memory = engine.memory {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(Format.bytes(memory.used))
@@ -38,6 +38,10 @@ struct MemoryPanel: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                ProcessList(title: "En çok bellek kullananlar", processes: engine.processes?.topMemory) {
+                    Format.bytes($0.memory)
                 }
             } else {
                 Text("Ölçülüyor…")

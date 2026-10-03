@@ -29,6 +29,11 @@ enum Format {
         )
         return formatted + "/s"
     }
+
+    /// Panel altındaki kendi tüketim satırı, ör. "MenuMonitor: %0.4 CPU · 31 MB".
+    static func selfUsage(_ usage: SelfUsage) -> String {
+        String(format: "MenuMonitor: %%%.1f CPU · ", usage.cpu * 100) + bytes(usage.memory)
+    }
 }
 
 extension MemoryPressure {

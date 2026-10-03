@@ -4,7 +4,7 @@ struct CPUPanel: View {
     let engine: SamplingEngine
 
     var body: some View {
-        PanelContainer(title: "İşlemci", engine: engine) {
+        PanelContainer(title: "İşlemci", kind: .cpu, engine: engine) {
             if let cpu = engine.cpu {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Format.precisePercent(cpu.total))
@@ -22,6 +22,10 @@ struct CPUPanel: View {
                             CoreGroupView(group: perCore.groups[index])
                         }
                     }
+                }
+
+                ProcessList(title: "En çok CPU kullananlar", processes: engine.processes?.topCPU) {
+                    Format.precisePercent($0.cpu)
                 }
             } else {
                 Text("Ölçülüyor…")
