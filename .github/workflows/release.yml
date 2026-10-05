@@ -21,7 +21,10 @@ jobs:
     name: Derle, doğrula ve taslak release oluştur
     # macos-15 Apple Silicon (arm64) runner'dır.
     runs-on: xcode-27
-    timeout-minutes: 30
+    # notarytool --timeout 30m derleme süresine eklenir; 30 dk'lık job kesilirdi.
+    timeout-minutes: 60
+    # Developer ID sertifikası ve noterlik anahtarı bu environment'ın secret'larındadır.
+    environment: release
     permissions:
       contents: write      # Release oluşturup dosya yüklemek için
       id-token: write      # Sigstore ile attestation imzalamak için OIDC token
@@ -57,17 +60,92 @@ jobs:
           echo "ZIP_NAME=MenuMonitor-$VERSION.zip" >> "$GITHUB_ENV"
           echo "Sürüm: $VERSION"
 
-      # Hangi Xcode/Swift ile derlendiğini loga yaz; tekrar üretilebilirlik için gerekli.
+      # Hangi Xcode/Swift/notarytool ile derlendiğini loga yaz; tekrar üretilebilirlik için gerekli.
       - name: Araç sürümlerini yazdır
         run: |
           xcodebuild -version
           swift --version
+          xcrun notarytool --version
+
+      # Derlemeden önce geçici bir anahtar zinciri kur. Sertifika dosyası yalnızca
+      # RUNNER_TEMP altında durur; secret değerleri loga yazılmaz.
+      - name: Geçici anahtar zinciri kur
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          umask 077
+          # .keychain-db soneki şart: aksi halde security farklı bir dosya oluşturabilir.
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          P12_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          # Adım hata verse bile .p12 workspace'te kalmasın.
+          trap 'rm -f "$P12_PATH"' EXIT
+
+          # Keychain'i oluştur, kilidini aç, 6 saat dolunca kilitlenecek şekilde ayarla.
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+          # .p12'yi base64'ten çözüp yalnızca RUNNER_TEMP altına yaz.
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$P12_PATH"
+          if [[ ! -s "$P12_PATH" ]]; then
+            echo "::error::Sertifika çözülemedi (boş dosya)."
+            exit 1
+          fi
+
+          # Sertifika ve özel anahtarı bu keychain'e aktar; codesign erişebilsin.
+          security import "$P12_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -f pkcs12 \
+            -T /usr/bin/codesign
+
+          # codesign parola soramasın diye partition listesini ayarla.
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          # Mevcut arama listesini koru; geçici keychain'i listenin başına ekle.
+          # Önce dosyaya yaz: komut başarısızsa arama listesini değiştirmeyelim.
+          KEYCHAIN_LIST="$RUNNER_TEMP/keychain-list.txt"
+          security list-keychains -d user > "$KEYCHAIN_LIST"
+          CURRENT_KEYCHAINS=()
+          while IFS= read -r line; do
+            cleaned="${line//\"/}"
+            cleaned="${cleaned#"${cleaned%%[![:space:]]*}"}"
+            cleaned="${cleaned%"${cleaned##*[![:space:]]}"}"
+            if [[ -n "$cleaned" && "$cleaned" != "$KEYCHAIN_PATH" ]]; then
+              CURRENT_KEYCHAINS+=("$cleaned")
+            fi
+          done < "$KEYCHAIN_LIST"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "${CURRENT_KEYCHAINS[@]}"
+
+          # Herkese açık kimlik adını doğrula. Özel anahtar bu çıktıda yer almaz.
+          IDENTITIES="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH")"
+          printf '%s\n' "$IDENTITIES"
+          if ! grep -q "Developer ID Application" <<< "$IDENTITIES"; then
+            echo "::error::Geçici keychain içinde 'Developer ID Application' kimliği yok."
+            exit 1
+          fi
+
+          # İçe aktarma bitti; .p12'yi hemen sil.
+          rm -f "$P12_PATH"
 
       # Release derlemesi. Sürüm ve build numarası komut satırından verilir;
       # Info.plist bu değerleri $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION) ile okur.
-      # Uygulama ad-hoc imzalanır (CODE_SIGN_IDENTITY="-"), hardened runtime project.yml'dan açıktır.
+      # İmzayı project.yml değil, bu argümanlar belirler; yerel derleme ad-hoc kalır.
       - name: Release derlemesi
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          if [[ -z "${KEYCHAIN_PATH:-}" || ! -e "$KEYCHAIN_PATH" ]]; then
+            echo "::error::Geçici keychain bulunamadı."
+            exit 1
+          fi
           xcodebuild \
             -project MenuMonitor.xcodeproj \
             -scheme MenuMonitor \
@@ -76,15 +154,23 @@ jobs:
             -arch arm64 \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
-            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN_PATH" \
+            ENABLE_HARDENED_RUNTIME=YES \
             build
 
-      # İmzanın geçerli olduğunu ve hardened runtime'ın açık olduğunu doğrula.
-      # codesign -dv çıktısı stderr'e yazar; loga düşmesi için stdout'a yönlendirilir.
+      # İmzanın Developer ID olduğunu ve hardened runtime'ın açık olduğunu doğrula.
+      # codesign -dv çıktısı stderr'e yazar.
       - name: İmzayı doğrula
         run: |
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           codesign -dv --verbose=4 "$APP_PATH" 2>&1 | tee codesign-info.txt
+          if ! grep -Eq '^Authority=Developer ID Application' codesign-info.txt; then
+            echo "::error::İmza yetkilisi Developer ID Application değil."
+            exit 1
+          fi
           if ! grep -Eq '^CodeDirectory .*flags=.*runtime' codesign-info.txt; then
             echo "::error::Hardened runtime açık değil."
             exit 1
@@ -94,8 +180,91 @@ jobs:
             -c "Print CFBundleVersion" \
             "$APP_PATH/Contents/Info.plist"
 
+      # Uygulamayı Apple noterlik servisine gönder. .p8 yalnızca RUNNER_TEMP altında durur.
+      - name: Noterlik için gönder
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          umask 077
+          P8_PATH="$RUNNER_TEMP/AuthKey.p8"
+          NOTARY_ZIP="$RUNNER_TEMP/MenuMonitor-notarize.zip"
+          NOTARY_LOG="$RUNNER_TEMP/notary-submit.txt"
+          # Adım biter bitmez (hata dahil) anahtarı sil. Geçici zip dağıtım paketi değildir.
+          trap 'rm -f "$P8_PATH" "$NOTARY_ZIP"' EXIT
+
+          # .p8'i base64'ten çöz. İçerik loga yazılmaz.
+          printf '%s' "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$P8_PATH"
+          if [[ ! -s "$P8_PATH" ]]; then
+            echo "::error::Noterlik anahtarı çözülemedi (boş dosya)."
+            exit 1
+          fi
+
+          # Noterliğe gidecek geçici zip. Dağıtım arşivi bundan üretilmez.
+          ditto -c -k --keepParent "$APP_PATH" "$NOTARY_ZIP"
+
+          # Gönder ve bitmesini bekle. pipefail açıkken çıkış kodu kaybolmasın diye if kullanılır.
+          SUBMIT_OK=0
+          if xcrun notarytool submit "$NOTARY_ZIP" \
+            --key "$P8_PATH" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait \
+            --timeout 30m \
+            2>&1 | tee "$NOTARY_LOG"; then
+            SUBMIT_OK=1
+          fi
+
+          ACCEPTED=0
+          if [[ -f "$NOTARY_LOG" ]] && grep -Eq '^[[:space:]]*status:[[:space:]]+Accepted[[:space:]]*$' "$NOTARY_LOG"; then
+            ACCEPTED=1
+          fi
+
+          if [[ "$SUBMIT_OK" -ne 1 || "$ACCEPTED" -ne 1 ]]; then
+            echo "::error::Notarization sonucu Accepted değil."
+            SUBMISSION_ID=""
+            if [[ -f "$NOTARY_LOG" ]]; then
+              # "id:" satırı gönderim kimliğidir; çıktıdaki başka UUID'ler alınmaz.
+              SUBMISSION_ID="$(awk '/^[[:space:]]*id: / { print $2; exit }' "$NOTARY_LOG" || true)"
+            fi
+            if [[ -n "$SUBMISSION_ID" ]]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --key "$P8_PATH" \
+                --key-id "$NOTARY_KEY_ID" \
+                --issuer "$NOTARY_ISSUER_ID" \
+                || echo "::warning::Notarization günlüğü alınamadı."
+            else
+              echo "::error::Gönderim kimliği bulunamadı; Apple günlüğü alınamadı."
+            fi
+            exit 1
+          fi
+
+          # Kabul edildi; anahtar artık gerekmez.
+          rm -f "$P8_PATH"
+
+      # Noterlik biletini uygulamaya göm ve Gatekeeper kaydını doğrula.
+      - name: Zımbala ve Gatekeeper ile doğrula
+        run: |
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+
+          # Çıkış kodu yerine kaynak satırına bak: assessments kapalıysa spctl
+          # yine de "source=Notarized Developer ID" yazabilir.
+          SPCTL_LOG="$RUNNER_TEMP/spctl.txt"
+          set +e
+          spctl --assess --type execute --verbose=4 "$APP_PATH" > "$SPCTL_LOG" 2>&1
+          SPCTL_STATUS=$?
+          set -e
+          cat "$SPCTL_LOG"
+          if ! grep -q "source=Notarized Developer ID" "$SPCTL_LOG"; then
+            echo "::error::Gatekeeper çıktısında 'source=Notarized Developer ID' yok (spctl çıkış kodu: $SPCTL_STATUS)."
+            exit 1
+          fi
+
       # .app paketini zip'le. ditto, macOS'a özgü öznitelikleri ve sembolik
       # bağlantıları koruduğu için zip yerine kullanılır.
+      # Arşiv, zımbalanmış uygulamadan yeniden üretilir; noterlik zip'i değildir.
       - name: Paketle
         run: |
           ditto -c -k --keepParent "$APP_PATH" "$ZIP_NAME"
@@ -128,3 +297,13 @@ jobs:
             --notes "" \
             --draft \
             --verify-tag
+
+      # Önceki adımlar başarısız olsa bile geçici keychain ve sertifika dosyaları kalmasın.
+      - name: Geçici imza malzemesini temizle
+        if: always()
+        run: |
+          KEYCHAIN_PATH="${KEYCHAIN_PATH:-$RUNNER_TEMP/signing.keychain-db}"
+          if [[ -e "$KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+          find "$RUNNER_TEMP" -maxdepth 1 \( -name '*.p12' -o -name '*.p8' \) -type f -delete

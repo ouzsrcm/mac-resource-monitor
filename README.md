@@ -35,31 +35,8 @@ Ayrıca:
 ## Kurulum
 
 1. [Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) sayfasından `MenuMonitor-<sürüm>.zip` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
-2. Zip'i açın ve `MenuMonitor.app`'i `/Applications` klasörüne taşıyın.
-3. Uygulamayı açın.
-
-MenuMonitor Apple tarafından **notarize edilmemiştir** (ücretli Apple Developer hesabı gerektirir). Bu yüzden ilk açılışta macOS uygulamanın doğrulanamadığı konusunda uyarır. Uygulamayı bir kez onayladıktan sonra uyarı tekrar çıkmaz.
-
-**macOS 15 Sequoia ve sonrası:**
-
-1. Uygulamayı açmayı deneyin; çıkan uyarıyı **Bitti** ile kapatın.
-2. **Sistem Ayarları > Gizlilik ve Güvenlik** bölümünü açın.
-3. En alttaki Güvenlik kısmında MenuMonitor için görünen **Yine de Aç** düğmesine basın ve onaylayın.
-
-**macOS 14 Sonoma:**
-
-1. Finder'da `MenuMonitor.app`'e sağ tıklayın (veya Control tuşuyla tıklayın) ve **Aç**'ı seçin.
-2. Açılan pencerede tekrar **Aç**'a basın.
-
-### Gelişmiş
-
-İleri kullanıcılar Gatekeeper uyarısını Terminal'den de atlayabilir:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/MenuMonitor.app
-```
-
-> **Uyarı:** Bu komut, macOS'un internetten indirilen dosyalara eklediği "karantina" işaretini kaldırır. Gatekeeper bu uygulamayı artık hiç kontrol etmez ve sizi uyarmaz. Yalnızca dosyayı aşağıdaki adımlarla doğruladıktan sonra ve ne yaptığınızdan eminseniz kullanın.
+2. Zip'i açın ve `MenuMonitor.app`'i Applications klasörüne taşıyın.
+3. Uygulamayı çalıştırın.
 
 ## İndirdiğin dosyayı doğrula
 
@@ -78,6 +55,14 @@ gh attestation verify MenuMonitor-<sürüm>.zip --repo ouzsrcm/mac-resource-moni
 ```
 
 Checksum tek başına yalnızca dosyanın indirme sırasında bozulmadığını gösterir; dosyayı değiştiren biri checksum'ı da değiştirebilir. Attestation ise zip'in bu repodaki belirli bir commit'ten, GitHub Actions'ta derlendiğini kriptografik olarak kanıtlar. Komut başarılı olursa çıktıda hangi commit ve workflow ile derlendiği görünür.
+
+**Notarization** (isteğe bağlı). Uygulamayı Applications'a taşıdıktan sonra:
+
+```sh
+spctl --assess --verbose=4 /Applications/MenuMonitor.app
+```
+
+Çıktıda `source=Notarized Developer ID` görünmesi, kopyanın Developer ID ile imzalanıp Apple noter onayından geçtiğini gösterir.
 
 ## Gizlilik
 
