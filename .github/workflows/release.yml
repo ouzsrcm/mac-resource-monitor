@@ -146,6 +146,8 @@ jobs:
             echo "::error::Geçici keychain bulunamadı."
             exit 1
           fi
+          # Debugger'ın sürece bağlanması için Xcode get-task-allow yetkisini kendisi ekler.
+          # com.apple.security.get-task-allow notarization tarafından reddedilir.
           xcodebuild \
             -project MenuMonitor.xcodeproj \
             -scheme MenuMonitor \
@@ -159,6 +161,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN_PATH" \
             ENABLE_HARDENED_RUNTIME=YES \
+            CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             build
 
       # İmzanın Developer ID olduğunu ve hardened runtime'ın açık olduğunu doğrula.
@@ -173,6 +176,17 @@ jobs:
           fi
           if ! grep -Eq '^CodeDirectory .*flags=.*runtime' codesign-info.txt; then
             echo "::error::Hardened runtime açık değil."
+            exit 1
+          fi
+          # get-task-allow varsa notarization reddeder; Apple'a göndermeden yakala.
+          # Yetki yoksa codesign sıfırdan farklı çıkabilir; asıl ölçüt bu anahtarın geçmemesidir.
+          ENTITLEMENTS_LOG="$RUNNER_TEMP/entitlements.xml"
+          set +e
+          codesign -d --entitlements - --xml "$APP_PATH" > "$ENTITLEMENTS_LOG" 2>&1
+          set -e
+          cat "$ENTITLEMENTS_LOG"
+          if grep -q "com.apple.security.get-task-allow" "$ENTITLEMENTS_LOG"; then
+            echo "::error::İmzada com.apple.security.get-task-allow var. Notarization bu yetkiyle reddedilir."
             exit 1
           fi
           /usr/libexec/PlistBuddy \
