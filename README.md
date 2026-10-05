@@ -34,13 +34,15 @@ Ayrıca:
 
 ## Kurulum
 
-1. [Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) sayfasından `MenuMonitor-<sürüm>.zip` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
+[Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) üzerinden dağıtılan kopya Developer ID ile imzalanır ve Apple noter onayından geçer.
+
+1. Aynı sayfadan `MenuMonitor-<sürüm>.zip` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
 2. Zip'i açın ve `MenuMonitor.app`'i Applications klasörüne taşıyın.
 3. Uygulamayı çalıştırın.
 
 ## İndirdiğin dosyayı doğrula
 
-Release dosyaları kaynak koddan GitHub Actions üzerinde derlenir (`.github/workflows/release.yml`). İndirdiğiniz dosyayı iki şekilde doğrulayabilirsiniz.
+Release dosyaları kaynak koddan GitHub Actions üzerinde derlenir (`.github/workflows/release.yml`): Developer ID ile imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır. İndirdiğiniz zip'i iki şekilde doğrulayabilirsiniz.
 
 **Checksum:** Zip ile aynı release'teki `SHA256SUMS.txt` dosyasını aynı klasöre indirip çalıştırın:
 
@@ -90,6 +92,8 @@ xcodegen generate
 xcodebuild -project MenuMonitor.xcodeproj -scheme MenuMonitor -configuration Debug -derivedDataPath build build
 open build/Build/Products/Debug/MenuMonitor.app
 ```
+
+Bu komutlar `project.yml` içindeki ad-hoc imzayı (`CODE_SIGN_IDENTITY: "-"`) kullanır. Releases'teki zip GitHub Actions'ta Developer ID Application kimliğiyle imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
 
 Gerçekçi performans ölçümü için `-configuration Release` ile derleyin. Uygulamadan çıkmak için herhangi bir paneldeki **Çıkış** butonunu kullanın.
 
@@ -143,7 +147,5 @@ Sources/
 ## Bilinen sınırlamalar
 
 - **Süreç listesi:** Root veya başka bir kullanıcıya ait süreçler (`WindowServer`, `kernel_task` vb.) yetki gerektirdiği için listede görünmez. Activity Monitor bunları ayrıcalıklı bir yardımcı servisle okur.
-- **Bildirimler:** Uygulama varsayılan olarak ad-hoc imzalıdır (`CODE_SIGN_IDENTITY: "-"`). Bildirimler gelmezse:
-  1. Uygulamayı `/Applications` klasörüne taşıyıp oradan çalıştırın.
-  2. Kalıcı çözüm için `project.yml` içinde `CODE_SIGN_STYLE: Automatic`, `CODE_SIGN_IDENTITY: "Apple Development"` ve `DEVELOPMENT_TEAM` ayarlayarak (ücretsiz Apple ID yeterli) gerçek bir imza kullanın.
+- **Bildirimler:** Releases'ten kurulan kopyada bildirimler Developer ID imzasıyla çalışır. macOS ilk bildirimde izin ister; izin kapalıysa **Sistem Ayarları > Bildirimler** bölümünden açın. Kaynak koddan ad-hoc imzayla derlenen kopyada bildirimler gelmeyebilir. Uygulamayı `/Applications` klasörüne taşıyın ya da yerel deneme için `project.yml` içinde `CODE_SIGN_STYLE: Automatic`, `CODE_SIGN_IDENTITY: "Apple Development"` ve `DEVELOPMENT_TEAM` ayarlayın.
 - **Termal durum:** macOS yalnızca dört seviyeli bir durum bildirir; sıcaklık değeri (°C) gösterilmez.
