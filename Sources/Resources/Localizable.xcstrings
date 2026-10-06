@@ -4,9 +4,6 @@
     "/ %@" : {
       "shouldTranslate" : false
     },
-    "%@" : {
-      "shouldTranslate" : false
-    },
     "%@ %@" : {
       "shouldTranslate" : false
     },
@@ -142,6 +139,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection"
+          }
+        }
+      }
+    },
+    "Bağlı değil" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
           }
         }
       }

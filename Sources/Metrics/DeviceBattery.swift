@@ -1,6 +1,6 @@
 import Foundation
 
-/// Bağlı bir Bluetooth aksesuarının veya kulaklığın pil durumu.
+/// Bir Bluetooth aksesuarının veya kulaklığın pil durumu.
 struct DeviceBattery: Identifiable, Sendable, Equatable {
     enum Kind: Sendable, Equatable {
         case mouse
@@ -34,6 +34,8 @@ struct DeviceBattery: Identifiable, Sendable, Equatable {
     var levels: [Level]
     /// Bilinmiyorsa nil. HID aksesuarlarında registry'den gelir; kulaklıklarda çoğu zaman yoktur.
     var isCharging: Bool?
+    /// HID servisi yalnızca cihaz bağlıyken vardır. Kulaklık pili bağlı değilken de gelebilir.
+    var isConnected: Bool = true
 
     /// Ad veya IOKit `Accessory Category` / `device_minorType` değerinden tür tahmini.
     static func kind(name: String, category: String?) -> Kind {

@@ -3,11 +3,11 @@ import Foundation
 /// AirPods ve Beats pillerini `system_profiler` JSON çıktısından okur.
 ///
 /// Bu Mac'te (`SPBluetoothDataType -json`) bağlı cihaz yok; kayıtlı cihazlar
-/// `device_not_connected` altında. Bağlı olanlar aynı biçimle `device_connected`
-/// anahtarında gelir. Gözlenen pil alanları (değerler "%100" gibi metin):
-/// `device_batteryLevelLeft`, `device_batteryLevelRight`, `device_batteryLevelCase`.
+/// `device_not_connected` altında. AirPods Pro orada da pil bildirir
+/// (`device_batteryLevelLeft`, `device_batteryLevelRight`, `device_batteryLevelCase`,
+/// değerler "%100" gibi metin). Bağlı olanlar `device_connected` anahtarında gelir.
 /// Tek parça cihazlar için raporlayıcı `device_batteryLevelMain` de tanımlar.
-/// iPhone, iPad ve Watch bu okumaya dahil edilmez.
+/// Yüzde alanı olmayan kayıtlar (bu Mac'te iPhone, iPad, Watch, MX Master) atlanır.
 ///
 /// Komut pahalıdır; `SamplingEngine` örnekleme döngüsünden ayrı, 60 saniyede
 /// bir ve ana thread dışında çalıştırılır. 5 saniyede bitmezse süreç sonlandırılır.
@@ -16,7 +16,7 @@ struct BluetoothAudioBatteryMonitor: Sendable {
     static let timeout: Duration = .seconds(5)
 
     /// nil: komut başarısız oldu, önceki sonuç korunmalı.
-    /// Boş dizi: komut bitti, bağlı ve pili bilinen kulaklık yok.
+    /// Boş dizi: komut bitti, pil yüzdesi bilinen cihaz yok.
     func read() async -> [DeviceBattery]? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
@@ -71,17 +71,35 @@ struct BluetoothAudioBatteryMonitor: Sendable {
         else { return [] }
 
         var devices: [DeviceBattery] = []
-        var seen = Set<String>()
+        var indexByID: [String: Int] = [:]
         for case let section as [String: Any] in sections {
-            guard let connected = section["device_connected"] else { continue }
-            for entry in deviceEntries(in: connected) {
-                guard let device = makeDevice(name: entry.name, properties: entry.properties),
-                      seen.insert(device.id).inserted
-                else { continue }
-                devices.append(device)
-            }
+            // Aynı cihaz iki listede varsa bağlı kaydı tutulur.
+            absorb(section["device_connected"], connected: true, into: &devices, indexByID: &indexByID)
+            absorb(section["device_not_connected"], connected: false, into: &devices, indexByID: &indexByID)
         }
         return devices.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private static func absorb(
+        _ value: Any?,
+        connected: Bool,
+        into devices: inout [DeviceBattery],
+        indexByID: inout [String: Int]
+    ) {
+        guard let value else { return }
+        for entry in deviceEntries(in: value) {
+            guard let device = makeDevice(name: entry.name, properties: entry.properties, isConnected: connected) else {
+                continue
+            }
+            if let index = indexByID[device.id] {
+                if connected && !devices[index].isConnected {
+                    devices[index] = device
+                }
+                continue
+            }
+            indexByID[device.id] = devices.count
+            devices.append(device)
+        }
     }
 
     private struct Entry {
@@ -89,9 +107,8 @@ struct BluetoothAudioBatteryMonitor: Sendable {
         var properties: [String: Any]
     }
 
-    /// `device_connected` bu Mac'te (bağlı cihaz olmadığından) yok. Kardeş anahtar
-    /// `device_not_connected` bir dizi: her öğe `{ "Cihaz Adı": { device_… } }`.
-    /// Bağlı liste aynı biçimde gelir; sözlük olarak gelirse onu da kabul ederiz.
+    /// Her iki liste de bir dizi: her öğe `{ "Cihaz Adı": { device_… } }`.
+    /// Sözlük olarak gelirse onu da kabul ederiz.
     private static func deviceEntries(in value: Any) -> [Entry] {
         if let array = value as? [Any] {
             return array.flatMap { item -> [Entry] in
@@ -114,11 +131,10 @@ struct BluetoothAudioBatteryMonitor: Sendable {
         }
     }
 
-    private static func makeDevice(name: String, properties: [String: Any]) -> DeviceBattery? {
+    private static func makeDevice(name: String, properties: [String: Any], isConnected: Bool) -> DeviceBattery? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let minorType = properties["device_minorType"] as? String
-        if isPhoneTabletOrWatch(name: trimmed, minorType: minorType) { return nil }
 
         var levels: [DeviceBattery.Level] = []
         func append(_ key: String, _ slot: DeviceBattery.Slot) {
@@ -143,17 +159,9 @@ struct BluetoothAudioBatteryMonitor: Sendable {
             name: trimmed,
             kind: DeviceBattery.kind(name: trimmed, category: minorType),
             levels: levels,
-            isCharging: nil
+            isCharging: nil,
+            isConnected: isConnected
         )
-    }
-
-    private static func isPhoneTabletOrWatch(name: String, minorType: String?) -> Bool {
-        let blob = (name + " " + (minorType ?? ""))
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .lowercased()
-        if blob.contains("iphone") || blob.contains("ipad") { return true }
-        let words = blob.split { !$0.isLetter }
-        return words.contains("watch")
     }
 
     private static func nonEmpty(_ text: String?) -> String? {

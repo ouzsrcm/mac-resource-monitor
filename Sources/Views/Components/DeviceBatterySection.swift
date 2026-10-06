@@ -29,9 +29,16 @@ private struct DeviceBatteryRow: View {
                 Image(systemName: deviceSymbol(device))
                     .frame(width: 18)
                     .foregroundStyle(iconTint)
-                Text(device.name)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(device.name)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if !device.isConnected {
+                        Text("Bağlı değil")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer(minLength: 8)
                 if showsSingleLine, let level = device.levels.first {
                     percentLabel(level.percent, charging: device.isCharging == true)

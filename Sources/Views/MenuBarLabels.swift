@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // Menü bar etiketleri tek bir `Text` veya `Image` olarak kurulur; MenuBarExtra
@@ -85,15 +86,75 @@ struct SystemLabel: View {
     @AppStorage(AppSettings.Key.menuBarLabelStyle) private var style = AppSettings.defaultMenuBarLabelStyle
 
     var body: some View {
-        let thermometer = Image(systemName: engine.thermal?.symbolName ?? "thermometer.medium")
+        let thermal = engine.thermal?.symbolName ?? "thermometer.medium"
         switch (style, engine.battery) {
         case (_, nil):
-            Text("\(thermometer)")
+            Image(systemName: thermal)
         case (.iconOnly, let battery?):
-            Text("\(thermometer) \(Image(systemName: battery.symbolName))")
+            // Yalnızca görsel içeren `Text` menü barında sıfır genişlikte kalıyor;
+            // öğe tıklanır ama simge çizilmez. İki sembol tek şablon görselde birleşir.
+            SystemStatusIcon(symbols: [thermal, battery.symbolName])
         case (.iconAndValue, let battery?):
-            Text("\(thermometer) \(Format.percent(battery.level))")
+            Text("\(Image(systemName: thermal)) \(Format.percent(battery.level))")
                 .monospacedDigit()
         }
+    }
+}
+
+/// Menü barında yan yana duran sembolleri tek `Image` olarak çizer.
+private struct SystemStatusIcon: View {
+    let symbols: [String]
+
+    var body: some View {
+        Image(nsImage: SystemStatusIconImage.image(symbols: symbols))
+            .renderingMode(.template)
+            .accessibilityLabel(Text("Sistem"))
+    }
+}
+
+@MainActor
+private enum SystemStatusIconImage {
+    private static var cache: [String: NSImage] = [:]
+
+    static func image(symbols: [String]) -> NSImage {
+        let key = symbols.joined(separator: "|")
+        if let cached = cache[key] { return cached }
+        let image = render(symbols: symbols)
+        cache[key] = image
+        return image
+    }
+
+    private static func render(symbols: [String]) -> NSImage {
+        let configuration = NSImage.SymbolConfiguration(pointSize: NSFont.systemFontSize, weight: .regular)
+        let parts = symbols.compactMap {
+            NSImage(systemSymbolName: $0, accessibilityDescription: nil)?.withSymbolConfiguration(configuration)
+        }
+        guard !parts.isEmpty else {
+            return NSImage(systemSymbolName: "thermometer.medium", accessibilityDescription: nil) ?? NSImage()
+        }
+        if parts.count == 1, let only = parts.first {
+            only.isTemplate = true
+            return only
+        }
+
+        let spacing: CGFloat = 4
+        let width = parts.reduce(0) { $0 + $1.size.width } + spacing * CGFloat(parts.count - 1)
+        let height = parts.map(\.size.height).max() ?? 0
+        let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { _ in
+            var x: CGFloat = 0
+            for part in parts {
+                let rect = NSRect(
+                    x: x,
+                    y: (height - part.size.height) / 2,
+                    width: part.size.width,
+                    height: part.size.height
+                )
+                part.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+                x += part.size.width + spacing
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 }
