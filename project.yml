@@ -39,11 +39,10 @@ targets:
           DEVELOPMENT_TEAM: 4C82989643
           CODE_SIGN_ENTITLEMENTS: Sources/App/MenuMonitor-Debug.entitlements
         Release:
-          # Yerel Release derlemesi ad-hoc kalır. CI, Developer ID ve provisioning profile'ı
-          # xcodebuild argümanlarıyla verir. CloudKit entitlement dosyası Production ortamıdır.
+          # Yerel Release derlemesi ad-hoc kalır. CI, Developer ID imzasını xcodebuild argümanlarıyla verir.
+          # iCloud senkronu kapalı olduğu için Release entitlement taşımaz ve provisioning profile gerekmez.
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: "-"
-          CODE_SIGN_ENTITLEMENTS: Sources/App/MenuMonitor-Release.entitlements
   # iPhone ve iPad eşlik uygulaması. Ayrı scheme; macOS release yalnızca MenuMonitor'ü derler.
   MenuMonitorCompanion:
     type: application
