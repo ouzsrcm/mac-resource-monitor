@@ -9,7 +9,9 @@ targets:
     type: application
     platform: macOS
     sources:
-      - Sources
+      - path: Sources
+        excludes:
+          - "**/*.entitlements"
     info:
       path: Sources/App/Info.plist
       properties:
@@ -26,7 +28,16 @@ targets:
         SWIFT_VERSION: "6.0"
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
-        CODE_SIGN_IDENTITY: "-"
-        CODE_SIGN_STYLE: Manual
         ENABLE_HARDENED_RUNTIME: YES
         ENABLE_APP_SANDBOX: NO
+      configs:
+        Debug:
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: 4C82989643
+          CODE_SIGN_ENTITLEMENTS: Sources/App/MenuMonitor-Debug.entitlements
+        Release:
+          # Yerel Release derlemesi ad-hoc kalır. CI, Developer ID ve provisioning profile'ı
+          # xcodebuild argümanlarıyla verir. CloudKit entitlement dosyası Production ortamıdır.
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "-"
+          CODE_SIGN_ENTITLEMENTS: Sources/App/MenuMonitor-Release.entitlements

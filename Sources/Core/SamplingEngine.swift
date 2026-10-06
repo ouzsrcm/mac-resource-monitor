@@ -27,6 +27,23 @@ final class SamplingEngine {
     private(set) var thermal: ProcessInfo.ThermalState?
     /// Pili olmayan Mac'lerde nil.
     private(set) var battery: BatteryStatus?
+    /// HID aksesuarları (fare, klavye, trackpad). Her örneklemede güncellenir.
+    private(set) var accessoryBatteries: [DeviceBattery] = []
+    /// AirPods/Beats. `system_profiler` pahalı olduğu için 60 saniyede bir gelir.
+    private(set) var audioBatteries: [DeviceBattery] = []
+
+    /// HID ve kulaklık listeleri. Aynı ad iki kaynakta varsa HID kaydı kalır.
+    var deviceBatteries: [DeviceBattery] {
+        var seen = Set<String>()
+        var result: [DeviceBattery] = []
+        for device in accessoryBatteries + audioBatteries {
+            let key = device.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            if seen.insert(key).inserted {
+                result.append(device)
+            }
+        }
+        return result
+    }
     /// Yalnızca CPU veya bellek paneli açıkken güncellenir; aksi halde nil.
     private(set) var processes: ProcessSnapshot?
     private(set) var selfUsage: SelfUsage?
@@ -46,6 +63,7 @@ final class SamplingEngine {
 
     let connection = ConnectionMonitor()
     let alerts: AlertEngine
+    let cloud: CloudBatterySync
 
     /// Şu anda açık olan paneller. Paneller `panelDidAppear(_:)` /
     /// `panelDidDisappear(_:)` ile günceller.
@@ -70,6 +88,7 @@ final class SamplingEngine {
     @ObservationIgnored private var diskMonitor = DiskMonitor()
     @ObservationIgnored private var thermalMonitor = ThermalMonitor()
     @ObservationIgnored private var batteryMonitor = BatteryMonitor()
+    @ObservationIgnored private var accessoryBatteryMonitor = AccessoryBatteryMonitor()
     @ObservationIgnored private var selfUsageMonitor = SelfUsageMonitor()
     @ObservationIgnored private let backgroundSampler: BackgroundSampler
 
@@ -81,12 +100,16 @@ final class SamplingEngine {
     @ObservationIgnored private var processResetPending = false
     @ObservationIgnored private var diskSpaceRead: Task<Void, Never>?
     @ObservationIgnored private var lastDiskSpaceRead: ContinuousClock.Instant?
+    /// Kulaklık pili örnekleme döngüsünden ayrıdır; `system_profiler` ana thread'i bekletmez.
+    @ObservationIgnored private var audioBatteryLoop: Task<Void, Never>?
+    @ObservationIgnored private var audioSleep: Task<Void, Never>?
 
     init() {
         AppSettings.registerDefaults()
         let backgroundSampler = BackgroundSampler()
         self.backgroundSampler = backgroundSampler
         alerts = AlertEngine(sampler: backgroundSampler)
+        cloud = CloudBatterySync(alerts: alerts)
         alerts.requestAuthorization()
 
         loop = Task { [weak self] in
@@ -113,6 +136,24 @@ final class SamplingEngine {
                 self?.sampleNow()
             }
         }
+
+        audioBatteryLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshAudioBatteries()
+                // Uyku sırasında `self`'i güçlü tutmuyoruz; aksi halde motor
+                // serbest bırakılana kadar 60 saniye beklenir.
+                guard self != nil, !Task.isCancelled else { return }
+                let sleep = Task {
+                    _ = try? await Task.sleep(for: BluetoothAudioBatteryMonitor.interval)
+                }
+                self?.audioSleep = sleep
+                await withTaskCancellationHandler {
+                    await sleep.value
+                } onCancel: {
+                    sleep.cancel()
+                }
+            }
+        }
     }
 
     deinit {
@@ -121,6 +162,8 @@ final class SamplingEngine {
         thermalUpdates?.cancel()
         processRead?.cancel()
         diskSpaceRead?.cancel()
+        audioBatteryLoop?.cancel()
+        audioSleep?.cancel()
     }
 
     func panelDidAppear(_ kind: PanelKind) {
@@ -137,6 +180,12 @@ final class SamplingEngine {
         sampleNow()
     }
 
+    /// Cihaz pili ayarı değişince 60 saniyelik beklemeyi keser; kulaklık
+    /// okuması bir sonraki turda hemen yapılır.
+    func deviceBatterySettingsDidChange() {
+        audioSleep?.cancel()
+    }
+
     /// Bekleyen uykuyu kesmek döngünün hemen örnek almasını ve güncel
     /// aralıkla devam etmesini sağlar.
     private func sampleNow() {
@@ -146,7 +195,11 @@ final class SamplingEngine {
     private func updateOpenPanels(_ change: (inout Set<PanelKind>) -> Void) {
         let oldInterval = interval
         let neededProcesses = needsProcesses
+        let systemWasOpen = openPanels.contains(.system)
         change(&openPanels)
+        if openPanels.contains(.system) != systemWasOpen {
+            cloud.setSystemPanelOpen(openPanels.contains(.system))
+        }
 
         if neededProcesses && !needsProcesses {
             // Panel kapalıyken eski liste gösterilmesin ve tekrar açıldığında
@@ -196,13 +249,48 @@ final class SamplingEngine {
         }
         thermal = thermalMonitor.read()
         battery = batteryMonitor.read()
+        cloud.noteLocalBattery(battery)
+        let accessories = accessoryBatteryMonitor.read()
+        if accessories != accessoryBatteries {
+            accessoryBatteries = accessories
+        }
         if let value = selfUsageMonitor.read() {
             selfUsage = value
         }
         startProcessReadIfNeeded()
         startDiskSpaceReadIfNeeded()
 
-        alerts.evaluate(cpu: cpu, memory: memory, thermal: thermal, diskSpace: diskSpace, battery: battery)
+        alerts.evaluate(
+            cpu: cpu,
+            memory: memory,
+            thermal: thermal,
+            diskSpace: diskSpace,
+            battery: battery,
+            devices: deviceBatteries
+        )
+    }
+
+    private func refreshAudioBatteries() async {
+        let wanted = AppSettings.showDeviceBatteries || AppSettings.isAlertEnabled(.lowDeviceBattery)
+        guard wanted else {
+            if !audioBatteries.isEmpty {
+                audioBatteries = []
+            }
+            return
+        }
+        guard let devices = await BluetoothAudioBatteryMonitor().read() else { return }
+        if Task.isCancelled { return }
+        if devices != audioBatteries {
+            audioBatteries = devices
+        }
+        alerts.evaluate(
+            cpu: cpu,
+            memory: memory,
+            thermal: thermal,
+            diskSpace: diskSpace,
+            battery: battery,
+            devices: deviceBatteries
+        )
     }
 
     private func startProcessReadIfNeeded() {

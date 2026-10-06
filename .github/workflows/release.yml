@@ -23,7 +23,7 @@ jobs:
     runs-on: xcode-27
     # notarytool --timeout 30m derleme süresine eklenir; 30 dk'lık job kesilirdi.
     timeout-minutes: 60
-    # Developer ID sertifikası ve noterlik anahtarı bu environment'ın secret'larındadır.
+    # Developer ID sertifikası, provisioning profile ve noterlik anahtarı bu environment'ın secret'larındadır.
     environment: release
     permissions:
       contents: write      # Release oluşturup dosya yüklemek için
@@ -135,9 +135,45 @@ jobs:
           # İçe aktarma bitti; .p12'yi hemen sil.
           rm -f "$P12_PATH"
 
+      # Profile base64 secret'ını çözer, UUID ve Name'i okur, Xcode'un baktığı klasöre kopyalar.
+      # Dosyanın tamamı loglanmaz.
+      - name: Provisioning profile'ı kur
+        env:
+          MACOS_PROVISION_PROFILE_BASE64: ${{ secrets.MACOS_PROVISION_PROFILE_BASE64 }}
+        run: |
+          umask 077
+          if [[ -z "${MACOS_PROVISION_PROFILE_BASE64}" ]]; then
+            echo "::error::MACOS_PROVISION_PROFILE_BASE64 secret'ı tanımlı değil."
+            exit 1
+          fi
+          PROFILE_SRC="$RUNNER_TEMP/MenuMonitor.provisionprofile"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          printf '%s' "$MACOS_PROVISION_PROFILE_BASE64" | base64 --decode > "$PROFILE_SRC"
+          if [[ ! -s "$PROFILE_SRC" ]]; then
+            echo "::error::Provisioning profile çözülemedi (boş dosya)."
+            exit 1
+          fi
+          security cms -D -i "$PROFILE_SRC" > "$PROFILE_PLIST"
+          UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
+          if [[ ! "$UUID" =~ ^[0-9A-Fa-f-]+$ || -z "$NAME" ]]; then
+            echo "::error::Provisioning profile UUID veya Name okunamadı."
+            exit 1
+          fi
+          DEST_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$DEST_DIR"
+          cp "$PROFILE_SRC" "$DEST_DIR/$UUID.provisionprofile"
+          {
+            echo "PROVISIONING_PROFILE_UUID=$UUID"
+            echo "PROVISIONING_PROFILE_NAME<<EOF"
+            echo "$NAME"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          echo "Kurulan profile: $NAME ($UUID)"
+
       # Release derlemesi. Sürüm ve build numarası komut satırından verilir;
       # Info.plist bu değerleri $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION) ile okur.
-      # İmzayı project.yml değil, bu argümanlar belirler; yerel derleme ad-hoc kalır.
+      # İmzayı project.yml değil, bu argümanlar ve kurulan profile belirler.
       - name: Release derlemesi
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -162,6 +198,7 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--timestamp --keychain $KEYCHAIN_PATH" \
             ENABLE_HARDENED_RUNTIME=YES \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_NAME" \
             build
 
       # İmzanın Developer ID olduğunu ve hardened runtime'ın açık olduğunu doğrula.
@@ -187,6 +224,14 @@ jobs:
           cat "$ENTITLEMENTS_LOG"
           if grep -q "com.apple.security.get-task-allow" "$ENTITLEMENTS_LOG"; then
             echo "::error::İmzada com.apple.security.get-task-allow var. Notarization bu yetkiyle reddedilir."
+            exit 1
+          fi
+          if ! grep -A1 "com.apple.developer.icloud-container-environment" "$ENTITLEMENTS_LOG" | grep -q "<string>Production</string>"; then
+            echo "::error::Entitlements içinde icloud-container-environment Production değil."
+            exit 1
+          fi
+          if ! grep -q "<string>iCloud.tr.ouzsrcm.MenuMonitor</string>" "$ENTITLEMENTS_LOG"; then
+            echo "::error::Entitlements içinde iCloud container kimliği yok."
             exit 1
           fi
           /usr/libexec/PlistBuddy \
@@ -320,4 +365,7 @@ jobs:
           if [[ -e "$KEYCHAIN_PATH" ]]; then
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
-          find "$RUNNER_TEMP" -maxdepth 1 \( -name '*.p12' -o -name '*.p8' \) -type f -delete
+          find "$RUNNER_TEMP" -maxdepth 1 \( -name '*.p12' -o -name '*.p8' -o -name '*.provisionprofile' -o -name 'profile.plist' \) -type f -delete
+          if [[ -n "${PROVISIONING_PROFILE_UUID:-}" ]]; then
+            rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/${PROVISIONING_PROFILE_UUID}.provisionprofile"
+          fi

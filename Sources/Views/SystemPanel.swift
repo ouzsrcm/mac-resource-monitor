@@ -3,6 +3,13 @@ import SwiftUI
 struct SystemPanel: View {
     let engine: SamplingEngine
 
+    @AppStorage(AppSettings.Key.showDeviceBatteries) private var showDeviceBatteries = true
+    @AppStorage(AppSettings.Key.iCloudBatterySync) private var iCloudSync = true
+
+    private var localDevices: [DeviceBattery] {
+        showDeviceBatteries ? engine.deviceBatteries : []
+    }
+
     var body: some View {
         PanelContainer(title: "Sistem", kind: .system, engine: engine) {
             HStack {
@@ -14,6 +21,18 @@ struct SystemPanel: View {
 
             if let battery = engine.battery {
                 BatterySection(battery: battery)
+            }
+
+            if !localDevices.isEmpty || iCloudSync {
+                Divider()
+                DeviceBatterySection(
+                    devices: localDevices,
+                    showsICloud: iCloudSync,
+                    iCloudStatusKnown: engine.cloud.statusKnown,
+                    iCloudAccount: engine.cloud.account,
+                    iCloudDevices: engine.cloud.remoteBatteries,
+                    iCloudHasFetched: engine.cloud.hasFetched
+                )
             }
         }
     }

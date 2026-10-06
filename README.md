@@ -93,7 +93,7 @@ xcodebuild -project MenuMonitor.xcodeproj -scheme MenuMonitor -configuration Deb
 open build/Build/Products/Debug/MenuMonitor.app
 ```
 
-Bu komutlar `project.yml` içindeki ad-hoc imzayı (`CODE_SIGN_IDENTITY: "-"`) kullanır. Releases'teki zip GitHub Actions'ta Developer ID Application kimliğiyle imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
+Debug derlemesi otomatik imza kullanır (`DEVELOPMENT_TEAM`). CloudKit ad-hoc imzayla çalışmadığı için `CODE_SIGN_IDENTITY: "-"` yalnızca yerel Release yapılandırmasındadır. Releases'teki zip GitHub Actions'ta Developer ID Application kimliği ve provisioning profile ile imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
 
 Gerçekçi performans ölçümü için `-configuration Release` ile derleyin. Uygulamadan çıkmak için herhangi bir paneldeki **Çıkış** butonunu kullanın.
 
@@ -106,6 +106,7 @@ Herhangi bir panelin altındaki **Ayarlar…** butonuyla açılır. Tüm ayarlar
 - **Görünür öğeler:** Beş menü bar öğesinin her biri ayrı ayrı gizlenebilir. Uygulama Dock'ta görünmediği için en az bir öğe açık kalmak zorundadır.
 - **Örnekleme:** Panel kapalıyken 1 / 2 / 3 / 5 sn, panel açıkken 0,5 / 1 / 2 sn.
 - **Uyarılar:** Her kural ayrı ayrı açılıp kapatılabilir.
+- **iCloud cihaz senkronizasyonu:** Açıksa (varsayılan) bu Mac'in pili kullanıcının iCloud özel veritabanına yazılır ve diğer cihazlar Sistem panelinde görünür. Kapalıyken CloudKit çağrısı yapılmaz.
 - **Disk etiketi:** "İkon ve değer" modunda menü barda boş alan yüzdesi veya `R 12 MB/s W 3 MB/s` biçiminde okuma/yazma hızı.
 
 ### Çeviriler
@@ -117,13 +118,14 @@ Metinler `Sources/Resources/Localizable.xcstrings` String Catalog'undadır. Kayn
 ```
 Sources/
 ├── App/          Uygulama girişi, menü bar öğeleri ve Settings sahnesi
+├── Shared/       iOS ile paylaşılacak CloudKit kayıt tipi ve senkron servisi
 ├── Core/         Örnekleme motoru, arka plan okuyucu, uyarılar, ayarlar, yardımcı tipler
 ├── Metrics/      Her metrik için ayrı bir okuyucu struct
 └── Views/        Paneller, menü bar etiketleri, ayarlar penceresi
     └── Components/   Grafikler ve küçük yeniden kullanılabilir bileşenler
 ```
 
-- **Tek örnekleme döngüsü:** Tüm ölçümler `SamplingEngine` içindeki tek bir async döngüden yapılır. Paneller ve etiketler kendi zamanlayıcısını kurmaz, yalnızca motorun yayınladığı değerleri (`@Observable`) okur.
+- **Tek örnekleme döngüsü:** Tüm ölçümler `SamplingEngine` içindeki tek bir async döngüden yapılır. Paneller ve etiketler kendi zamanlayıcısını kurmaz, yalnızca motorun yayınladığı değerleri (`@Observable`) okur. iCloud okuma ve yazma bu döngünün dışında, ayrı ve seyrek bir görevde çalışır.
 - **Uyarlanabilir aralık:** Paneller açılıp kapandıkça motora bildirir. Hiç panel açık değilken örnekleme seyrekleşir, bir panel açıldığında sıklaşır.
 - **Metrik okuyucular:** `Sources/Metrics` altındaki her okuyucu `mutating func read() -> X?` desenini izler. Fark gerektiren ölçümler (CPU, ağ, disk hızı) önceki örneği kendi içinde saklar.
 - **Pahalı okumalar ana thread dışında:** Süreç taraması ve disk kapasitesi `BackgroundSampler` actor'ünde çalışır. Süreç taraması yalnızca CPU veya Bellek paneli açıkken yapılır; disk kapasitesi 30 saniyede bir okunur.
@@ -143,9 +145,10 @@ Sources/
 | Termal | `ProcessInfo.thermalState` |
 | Pil | IOKit Power Sources (`IOPSCopyPowerSourcesInfo`) |
 | Bildirimler | UserNotifications |
+| Cihaz pili senkronu | CloudKit özel veritabanı (`iCloud.tr.ouzsrcm.MenuMonitor`) |
 
 ## Bilinen sınırlamalar
 
 - **Süreç listesi:** Root veya başka bir kullanıcıya ait süreçler (`WindowServer`, `kernel_task` vb.) yetki gerektirdiği için listede görünmez. Activity Monitor bunları ayrıcalıklı bir yardımcı servisle okur.
-- **Bildirimler:** Releases'ten kurulan kopyada bildirimler Developer ID imzasıyla çalışır. macOS ilk bildirimde izin ister; izin kapalıysa **Sistem Ayarları > Bildirimler** bölümünden açın. Kaynak koddan ad-hoc imzayla derlenen kopyada bildirimler gelmeyebilir. Uygulamayı `/Applications` klasörüne taşıyın ya da yerel deneme için `project.yml` içinde `CODE_SIGN_STYLE: Automatic`, `CODE_SIGN_IDENTITY: "Apple Development"` ve `DEVELOPMENT_TEAM` ayarlayın.
+- **Bildirimler:** macOS ilk bildirimde izin ister; izin kapalıysa **Sistem Ayarları > Bildirimler** bölümünden açın. Debug derlemesi Apple Development imzası kullanır. Yerel Release hâlâ ad-hoc imzalanır; o kopyada bildirimler ve CloudKit çalışmayabilir.
 - **Termal durum:** macOS yalnızca dört seviyeli bir durum bildirir; sıcaklık değeri (°C) gösterilmez.
