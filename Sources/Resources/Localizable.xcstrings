@@ -626,12 +626,32 @@
         }
       }
     },
+    "Kur" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install"
+          }
+        }
+      }
+    },
     "Kullanıcı" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "User"
+          }
+        }
+      }
+    },
+    "Kurulum başarısız" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installation failed"
           }
         }
       }
@@ -682,6 +702,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In menu bar"
+          }
+        }
+      }
+    },
+    "MenuMonitor Applications klasörüne kopyalanamadı. Uygulamayı elle Applications klasörüne taşıyın." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MenuMonitor could not be copied to the Applications folder. Move the app into the Applications folder yourself."
+          }
+        }
+      }
+    },
+    "MenuMonitor'ü kur" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install MenuMonitor"
           }
         }
       }
@@ -869,6 +909,16 @@
         }
       }
     },
+    "Şimdi değil" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
+          }
+        }
+      }
+    },
     "Seri" : {
       "localizations" : {
         "en" : {
@@ -1009,6 +1059,16 @@
         }
       }
     },
+    "Tamam" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Termal Durum" : {
       "localizations" : {
         "en" : {
@@ -1065,6 +1125,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App Memory"
+          }
+        }
+      }
+    },
+    "Uygulama indirilen kopyadan çalışıyor. Applications klasörüne kurulunca menü çubuğunda kalıcı olur." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MenuMonitor is running from the downloaded copy. Installing it into the Applications folder keeps it in the menu bar."
           }
         }
       }

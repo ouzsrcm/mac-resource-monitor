@@ -41,17 +41,18 @@ Ayrıca:
 
 ## Kurulum
 
-[Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) üzerinden dağıtılan kopya Developer ID ile imzalanır ve Apple noter onayından geçer.
+[Releases](https://github.com/ouzsrcm/mac-resource-monitor/releases/latest) üzerinden dağıtılan kopya Developer ID ile imzalanır ve Apple noter onayından geçer. İndirilen dosya bir kurulum disk imajıdır.
 
-1. Aynı sayfadan `MenuMonitor-<sürüm>.zip` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
-2. Zip'i açın ve `MenuMonitor.app`'i Applications klasörüne taşıyın.
-3. Uygulamayı çalıştırın.
+1. Aynı sayfadan `MenuMonitor-<sürüm>.dmg` dosyasını indirin. İsterseniz önce aşağıdaki "İndirdiğin dosyayı doğrula" bölümündeki adımlarla dosyayı doğrulayın.
+2. Disk imajını açın.
+3. `MenuMonitor` simgesini `Applications` klasörüne sürükleyin. Uygulamayı imajın içinden doğrudan açarsanız, Applications klasörüne kurmayı teklif eder.
+4. İmajı çıkarın ve uygulamayı Applications klasöründen çalıştırın.
 
 ## İndirdiğin dosyayı doğrula
 
-Release dosyaları kaynak koddan GitHub Actions üzerinde derlenir (`.github/workflows/release.yml`): Developer ID ile imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır. İndirdiğiniz zip'i iki şekilde doğrulayabilirsiniz.
+Release dosyaları kaynak koddan GitHub Actions üzerinde derlenir (`.github/workflows/release.yml`): uygulama Developer ID ile imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır. Kurulum imajı da ayrıca imzalanır, noterlenir ve zımbalanır. İndirdiğiniz disk imajını iki şekilde doğrulayabilirsiniz.
 
-**Checksum:** Zip ile aynı release'teki `SHA256SUMS.txt` dosyasını aynı klasöre indirip çalıştırın:
+**Checksum:** Disk imajıyla aynı release'teki `SHA256SUMS.txt` dosyasını aynı klasöre indirip çalıştırın:
 
 ```sh
 shasum -a 256 -c SHA256SUMS.txt
@@ -60,10 +61,10 @@ shasum -a 256 -c SHA256SUMS.txt
 **Köken doğrulaması** ([GitHub CLI](https://cli.github.com) gerekir):
 
 ```sh
-gh attestation verify MenuMonitor-<sürüm>.zip --repo ouzsrcm/mac-resource-monitor
+gh attestation verify MenuMonitor-<sürüm>.dmg --repo ouzsrcm/mac-resource-monitor
 ```
 
-Checksum tek başına yalnızca dosyanın indirme sırasında bozulmadığını gösterir; dosyayı değiştiren biri checksum'ı da değiştirebilir. Attestation ise zip'in bu repodaki belirli bir commit'ten, GitHub Actions'ta derlendiğini kriptografik olarak kanıtlar. Komut başarılı olursa çıktıda hangi commit ve workflow ile derlendiği görünür.
+Checksum tek başına yalnızca dosyanın indirme sırasında bozulmadığını gösterir; dosyayı değiştiren biri checksum'ı da değiştirebilir. Attestation ise disk imajının bu repodaki belirli bir commit'ten, GitHub Actions'ta derlendiğini kriptografik olarak kanıtlar. Komut başarılı olursa çıktıda hangi commit ve workflow ile derlendiği görünür.
 
 **Notarization** (isteğe bağlı). Uygulamayı Applications'a taşıdıktan sonra:
 
@@ -102,7 +103,7 @@ xcodebuild -project MenuMonitor.xcodeproj -scheme MenuMonitor -configuration Deb
 open build/Build/Products/Debug/MenuMonitor.app
 ```
 
-Debug derlemesi otomatik imza kullanır (`DEVELOPMENT_TEAM`). Yerel Release yapılandırması ad-hoc imzalanır (`CODE_SIGN_IDENTITY: "-"`). Releases'teki zip GitHub Actions'ta Developer ID Application kimliğiyle imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
+Debug derlemesi otomatik imza kullanır (`DEVELOPMENT_TEAM`). Yerel Release yapılandırması ad-hoc imzalanır (`CODE_SIGN_IDENTITY: "-"`). Releases'teki disk imajı GitHub Actions'ta üretilir: uygulama Developer ID Application kimliğiyle imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır; `Scripts/make-dmg.sh` bu kopyadan kurulum imajını oluşturur, imaj da imzalanıp noterlenir.
 
 Gerçekçi performans ölçümü için `-configuration Release` ile derleyin. Uygulamadan çıkmak için herhangi bir paneldeki **Çıkış** butonunu kullanın.
 
