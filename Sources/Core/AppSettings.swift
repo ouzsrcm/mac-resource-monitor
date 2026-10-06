@@ -127,9 +127,13 @@ enum AppSettings {
         UserDefaults.standard.bool(forKey: Key.showDeviceBatteries)
     }
 
+    /// iCloud senkronu bu derlemede var mı. Release imzası iCloud entitlement'ı taşımaz;
+    /// açmak için entitlement dosyaları ve Developer ID provisioning profile'ı da geri gelmeli.
+    static let iCloudSyncAvailable = false
+
     /// Kapalıyken hiçbir CloudKit çağrısı yapılmaz. Varsayılan açık.
     static var iCloudBatterySyncEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Key.iCloudBatterySync)
+        iCloudSyncAvailable && UserDefaults.standard.bool(forKey: Key.iCloudBatterySync)
     }
 
     private static func interval(forKey key: String, allowed: [Double], fallback: Double) -> Duration {

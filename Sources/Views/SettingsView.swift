@@ -112,7 +112,9 @@ struct SettingsView: View {
     private var systemCard: some View {
         SettingsCard("Sistem paneli", systemImage: "battery.100percent") {
             Toggle("Cihaz pillerini göster", isOn: $showDeviceBatteries)
-            Toggle("iCloud cihaz senkronizasyonu", isOn: $iCloudBatterySync)
+            if AppSettings.iCloudSyncAvailable {
+                Toggle("iCloud cihaz senkronizasyonu", isOn: $iCloudBatterySync)
+            }
         }
     }
 
@@ -132,7 +134,7 @@ struct SettingsView: View {
 
     private var alertsCard: some View {
         SettingsCard("Uyarılar", systemImage: "bell") {
-            ForEach(AlertKind.allCases) { kind in
+            ForEach(AlertKind.allCases.filter { AppSettings.iCloudSyncAvailable || $0 != .lowRemoteBattery }) { kind in
                 AlertToggle(kind: kind)
             }
             if engine.alerts.authorizationStatus == .denied {

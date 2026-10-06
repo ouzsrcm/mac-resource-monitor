@@ -4,7 +4,11 @@ struct SystemPanel: View {
     let engine: SamplingEngine
 
     @AppStorage(AppSettings.Key.showDeviceBatteries) private var showDeviceBatteries = true
-    @AppStorage(AppSettings.Key.iCloudBatterySync) private var iCloudSync = true
+    @AppStorage(AppSettings.Key.iCloudBatterySync) private var iCloudSyncSetting = true
+
+    private var iCloudSync: Bool {
+        AppSettings.iCloudSyncAvailable && iCloudSyncSetting
+    }
 
     private var localDevices: [DeviceBattery] {
         showDeviceBatteries ? engine.deviceBatteries : []

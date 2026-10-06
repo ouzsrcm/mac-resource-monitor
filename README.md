@@ -93,7 +93,7 @@ xcodebuild -project MenuMonitor.xcodeproj -scheme MenuMonitor -configuration Deb
 open build/Build/Products/Debug/MenuMonitor.app
 ```
 
-Debug derlemesi otomatik imza kullanır (`DEVELOPMENT_TEAM`). CloudKit ad-hoc imzayla çalışmadığı için `CODE_SIGN_IDENTITY: "-"` yalnızca yerel Release yapılandırmasındadır. Releases'teki zip GitHub Actions'ta Developer ID Application kimliği ve provisioning profile ile imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
+Debug derlemesi otomatik imza kullanır (`DEVELOPMENT_TEAM`). CloudKit ad-hoc imzayla çalışmadığı için `CODE_SIGN_IDENTITY: "-"` yalnızca yerel Release yapılandırmasındadır. Releases'teki zip GitHub Actions'ta Developer ID Application kimliğiyle imzalanır, Apple noterinden geçer ve bilet uygulamaya zımbalanır.
 
 Gerçekçi performans ölçümü için `-configuration Release` ile derleyin. Uygulamadan çıkmak için herhangi bir paneldeki **Çıkış** butonunu kullanın.
 
@@ -106,7 +106,7 @@ Herhangi bir panelin altındaki **Ayarlar…** butonuyla açılır. Tüm ayarlar
 - **Görünür öğeler:** Beş menü bar öğesinin her biri ayrı ayrı gizlenebilir. Uygulama Dock'ta görünmediği için en az bir öğe açık kalmak zorundadır.
 - **Örnekleme:** Panel kapalıyken 1 / 2 / 3 / 5 sn, panel açıkken 0,5 / 1 / 2 sn.
 - **Uyarılar:** Her kural ayrı ayrı açılıp kapatılabilir.
-- **iCloud cihaz senkronizasyonu:** Açıksa (varsayılan) bu Mac'in pili kullanıcının iCloud özel veritabanına yazılır ve diğer cihazlar Sistem panelinde görünür. Kapalıyken CloudKit çağrısı yapılmaz.
+- **iCloud cihaz senkronizasyonu:** Şimdilik devre dışı (`AppSettings.iCloudSyncAvailable`). Ayar görünmez ve CloudKit çağrısı yapılmaz.
 - **Disk etiketi:** "İkon ve değer" modunda menü barda boş alan yüzdesi veya `R 12 MB/s W 3 MB/s` biçiminde okuma/yazma hızı.
 
 ### Çeviriler
