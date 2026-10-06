@@ -493,6 +493,16 @@
         }
       }
     },
+    "İkon ve değer seçilince menü barda görünür." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shown in the menu bar when Icon and value is selected."
+          }
+        }
+      }
+    },
     "iCloud cihaz senkronizasyonu" : {
       "localizations" : {
         "en" : {
