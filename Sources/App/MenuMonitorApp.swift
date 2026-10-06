@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct MenuMonitorApp: App {
+    @NSApplicationDelegateAdaptor(AppLaunchDelegate.self) private var appLaunch
     @State private var engine = SamplingEngine()
 
     @AppStorage(AppSettings.Key.showCPU) private var showCPU = true

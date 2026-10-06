@@ -21,8 +21,8 @@ jobs:
     name: Derle, doğrula ve taslak release oluştur
     # macos-15 Apple Silicon (arm64) runner'dır.
     runs-on: xcode-27
-    # notarytool --timeout 30m derleme süresine eklenir; 30 dk'lık job kesilirdi.
-    timeout-minutes: 60
+    # Uygulama ve kurulum imajı ayrı ayrı noterlenir. Her notarytool --timeout 30m'dir.
+    timeout-minutes: 90
     # Developer ID sertifikası ve noterlik anahtarı bu environment'ın secret'larındadır.
     environment: release
     permissions:
@@ -57,7 +57,7 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "ZIP_NAME=MenuMonitor-$VERSION.zip" >> "$GITHUB_ENV"
+          echo "DMG_NAME=MenuMonitor-$VERSION.dmg" >> "$GITHUB_ENV"
           echo "Sürüm: $VERSION"
 
       # Hangi Xcode/Swift/notarytool ile derlendiğini loga yaz; tekrar üretilebilirlik için gerekli.
@@ -195,68 +195,14 @@ jobs:
             -c "Print CFBundleVersion" \
             "$APP_PATH/Contents/Info.plist"
 
-      # Uygulamayı Apple noterlik servisine gönder. .p8 yalnızca RUNNER_TEMP altında durur.
+      # Uygulamayı Apple noterlik servisine gönder. Anahtar yalnızca betiğin
+      # geçici dizininde durur ve adım bitince silinir. Geçici zip dağıtılmaz.
       - name: Noterlik için gönder
         env:
           NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
-        run: |
-          umask 077
-          P8_PATH="$RUNNER_TEMP/AuthKey.p8"
-          NOTARY_ZIP="$RUNNER_TEMP/MenuMonitor-notarize.zip"
-          NOTARY_LOG="$RUNNER_TEMP/notary-submit.txt"
-          # Adım biter bitmez (hata dahil) anahtarı sil. Geçici zip dağıtım paketi değildir.
-          trap 'rm -f "$P8_PATH" "$NOTARY_ZIP"' EXIT
-
-          # .p8'i base64'ten çöz. İçerik loga yazılmaz.
-          printf '%s' "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$P8_PATH"
-          if [[ ! -s "$P8_PATH" ]]; then
-            echo "::error::Noterlik anahtarı çözülemedi (boş dosya)."
-            exit 1
-          fi
-
-          # Noterliğe gidecek geçici zip. Dağıtım arşivi bundan üretilmez.
-          ditto -c -k --keepParent "$APP_PATH" "$NOTARY_ZIP"
-
-          # Gönder ve bitmesini bekle. pipefail açıkken çıkış kodu kaybolmasın diye if kullanılır.
-          SUBMIT_OK=0
-          if xcrun notarytool submit "$NOTARY_ZIP" \
-            --key "$P8_PATH" \
-            --key-id "$NOTARY_KEY_ID" \
-            --issuer "$NOTARY_ISSUER_ID" \
-            --wait \
-            --timeout 30m \
-            2>&1 | tee "$NOTARY_LOG"; then
-            SUBMIT_OK=1
-          fi
-
-          ACCEPTED=0
-          if [[ -f "$NOTARY_LOG" ]] && grep -Eq '^[[:space:]]*status:[[:space:]]+Accepted[[:space:]]*$' "$NOTARY_LOG"; then
-            ACCEPTED=1
-          fi
-
-          if [[ "$SUBMIT_OK" -ne 1 || "$ACCEPTED" -ne 1 ]]; then
-            echo "::error::Notarization sonucu Accepted değil."
-            SUBMISSION_ID=""
-            if [[ -f "$NOTARY_LOG" ]]; then
-              # "id:" satırı gönderim kimliğidir; çıktıdaki başka UUID'ler alınmaz.
-              SUBMISSION_ID="$(awk '/^[[:space:]]*id: / { print $2; exit }' "$NOTARY_LOG" || true)"
-            fi
-            if [[ -n "$SUBMISSION_ID" ]]; then
-              xcrun notarytool log "$SUBMISSION_ID" \
-                --key "$P8_PATH" \
-                --key-id "$NOTARY_KEY_ID" \
-                --issuer "$NOTARY_ISSUER_ID" \
-                || echo "::warning::Notarization günlüğü alınamadı."
-            else
-              echo "::error::Gönderim kimliği bulunamadı; Apple günlüğü alınamadı."
-            fi
-            exit 1
-          fi
-
-          # Kabul edildi; anahtar artık gerekmez.
-          rm -f "$P8_PATH"
+        run: bash Scripts/notarize.sh "$APP_PATH"
 
       # Noterlik biletini uygulamaya göm ve Gatekeeper kaydını doğrula.
       - name: Zımbala ve Gatekeeper ile doğrula
@@ -277,26 +223,63 @@ jobs:
             exit 1
           fi
 
-      # .app paketini zip'le. ditto, macOS'a özgü öznitelikleri ve sembolik
-      # bağlantıları koruduğu için zip yerine kullanılır.
-      # Arşiv, zımbalanmış uygulamadan yeniden üretilir; noterlik zip'i değildir.
-      - name: Paketle
+      # Zımbalanmış uygulamadan kurulum imajı. Finder yerleşimi olmazsa da
+      # uygulama ve Applications kısayolu imajın içindedir.
+      - name: Kurulum imajını oluştur
+        run: bash Scripts/make-dmg.sh "$APP_PATH" "$DMG_NAME"
+
+      # İndirilen dosya disk imajının kendisidir; o da Developer ID ile imzalanmalıdır.
+      - name: Kurulum imajını imzala
         run: |
-          ditto -c -k --keepParent "$APP_PATH" "$ZIP_NAME"
-          ls -l "$ZIP_NAME"
+          if [[ -z "${KEYCHAIN_PATH:-}" || ! -e "$KEYCHAIN_PATH" ]]; then
+            echo "::error::Geçici keychain bulunamadı."
+            exit 1
+          fi
+          codesign --sign "Developer ID Application" --timestamp --keychain "$KEYCHAIN_PATH" "$DMG_NAME"
+          codesign --verify --verbose=2 "$DMG_NAME"
+
+      - name: Kurulum imajını noterliğe gönder
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: bash Scripts/notarize.sh "$DMG_NAME"
+
+      - name: Kurulum imajını zımbala ve doğrula
+        run: |
+          xcrun stapler staple "$DMG_NAME"
+          xcrun stapler validate "$DMG_NAME"
+
+          SPCTL_LOG="$RUNNER_TEMP/spctl-dmg.txt"
+          set +e
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG_NAME" > "$SPCTL_LOG" 2>&1
+          SPCTL_STATUS=$?
+          set -e
+          cat "$SPCTL_LOG"
+          if ! grep -q "source=Notarized Developer ID" "$SPCTL_LOG"; then
+            echo "::error::Disk imajında 'source=Notarized Developer ID' yok (spctl çıkış kodu: $SPCTL_STATUS)."
+            exit 1
+          fi
+
+          MOUNT="$RUNNER_TEMP/dmg-check"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$DMG_NAME" -nobrowse -mountpoint "$MOUNT"
+          codesign --verify --deep --strict --verbose=2 "$MOUNT/MenuMonitor.app"
+          test -L "$MOUNT/Applications"
+          hdiutil detach "$MOUNT"
 
       # Kullanıcıların indirdiği dosyanın bozulmadığını kontrol edebilmesi için SHA-256 özeti.
       - name: Checksum üret
         run: |
-          shasum -a 256 "$ZIP_NAME" > SHA256SUMS.txt
+          shasum -a 256 "$DMG_NAME" > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
-      # Zip'in bu repodaki bu commit'ten GitHub Actions'ta derlendiğini kanıtlayan
+      # Disk imajının bu repodaki bu commit'ten GitHub Actions'ta derlendiğini kanıtlayan
       # imzalı köken kaydı (SLSA build provenance). Doğrulama: gh attestation verify.
       - name: Köken kanıtı (attestation) üret
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: ${{ env.ZIP_NAME }}
+          subject-path: ${{ env.DMG_NAME }}
 
       # Taslak release oluştur ve dosyaları yükle. Release notu elle yazılıp
       # yayınlanacağı için not boş bırakılır; --verify-tag tag'in var olduğunu doğrular.
@@ -305,7 +288,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            "$ZIP_NAME" \
+            "$DMG_NAME" \
             SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --title "MenuMonitor $VERSION" \
