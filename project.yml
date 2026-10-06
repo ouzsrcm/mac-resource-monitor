@@ -12,6 +12,9 @@ targets:
       - path: Sources
         excludes:
           - "**/*.entitlements"
+          # iOS eşlik uygulaması bu hedefe girmez.
+          - Companion/**
+          - Companion/*
     info:
       path: Sources/App/Info.plist
       properties:
@@ -41,3 +44,71 @@ targets:
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: "-"
           CODE_SIGN_ENTITLEMENTS: Sources/App/MenuMonitor-Release.entitlements
+  # iPhone ve iPad eşlik uygulaması. Ayrı scheme; macOS release yalnızca MenuMonitor'ü derler.
+  MenuMonitorCompanion:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/Companion
+        excludes:
+          - "**/*.entitlements"
+          - Info.plist
+      - path: Sources/Shared
+    info:
+      path: Sources/Companion/Info.plist
+      properties:
+        CFBundleDisplayName: Pil Senkronu
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UIBackgroundModes:
+          - fetch
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - tr.ouzsrcm.MenuMonitor.companion.refresh
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tr.ouzsrcm.MenuMonitor.companion
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+        DEVELOPMENT_TEAM: 4C82989643
+        CODE_SIGN_ENTITLEMENTS: Sources/Companion/MenuMonitorCompanion.entitlements
+schemes:
+  MenuMonitor:
+    build:
+      targets:
+        MenuMonitor: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  MenuMonitorCompanion:
+    build:
+      targets:
+        MenuMonitorCompanion: all
+    run:
+      config: Debug
+    archive:
+      config: Release
