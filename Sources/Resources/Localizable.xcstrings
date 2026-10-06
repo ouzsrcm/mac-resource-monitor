@@ -223,6 +223,16 @@
         }
       }
     },
+    "Bir iCloud cihazının pili %10'un altında" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An iCloud device's battery is below 10%"
+          }
+        }
+      }
+    },
     "Bluetooth cihazı" : {
       "localizations" : {
         "en" : {
@@ -453,6 +463,16 @@
         }
       }
     },
+    "Henüz başka cihaz yok — iPhone uygulamasını kurduğunuzda burada görünecek." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No other devices yet — they'll show up here once you install the iPhone app."
+          }
+        }
+      }
+    },
     "Hız" : {
       "localizations" : {
         "en" : {
@@ -469,6 +489,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Icon and value"
+          }
+        }
+      }
+    },
+    "iCloud cihaz senkronizasyonu" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud device sync"
+          }
+        }
+      }
+    },
+    "iCloud cihazları" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud devices"
+          }
+        }
+      }
+    },
+    "iCloud cihazlarını görmek için Sistem Ayarları'ndan iCloud'a giriş yapın." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to iCloud in System Settings to see iCloud devices."
+          }
+        }
+      }
+    },
+    "iCloud cihazının pili azaldı" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud device battery is low"
           }
         }
       }

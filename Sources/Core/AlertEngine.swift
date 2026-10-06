@@ -10,6 +10,7 @@ enum AlertKind: String, CaseIterable, Identifiable, Sendable {
     case lowDiskSpace
     case lowBattery
     case lowDeviceBattery
+    case lowRemoteBattery
 
     var id: String { rawValue }
 
@@ -21,6 +22,7 @@ enum AlertKind: String, CaseIterable, Identifiable, Sendable {
         case .lowDiskSpace: String(localized: "Disk boş alanı %10'un altında")
         case .lowBattery: String(localized: "Pil %15'in altında ve şarj olmuyor")
         case .lowDeviceBattery: String(localized: "Bir cihazın pili %10'un altında")
+        case .lowRemoteBattery: String(localized: "Bir iCloud cihazının pili %10'un altında")
         }
     }
 }
@@ -39,6 +41,8 @@ final class AlertEngine {
     nonisolated static let deviceBatteryThreshold = 10
     /// Aynı cihaz için bildirimler arasında beklenen süre.
     nonisolated static let deviceBatteryCooldown: Duration = .seconds(60 * 60)
+    /// Uzak kayıt bundan eskiyse düşük pil bildirimi gönderilmez.
+    nonisolated static let remoteBatteryFreshness: TimeInterval = 30 * 60
 
     /// Ayarlar penceresinde uyarı göstermek için; henüz sorulmadıysa nil.
     private(set) var authorizationStatus: UNAuthorizationStatus?
@@ -48,6 +52,8 @@ final class AlertEngine {
     @ObservationIgnored private var lastFired: [AlertKind: ContinuousClock.Instant] = [:]
     /// Cihaz kimliği başına son düşük pil bildirimi. Ortak 10 dakikalık beklemeden bağımsızdır.
     @ObservationIgnored private var deviceBatteryFired: [String: ContinuousClock.Instant] = [:]
+    /// iCloud cihazı başına son düşük pil bildirimi.
+    @ObservationIgnored private var remoteBatteryFired: [String: ContinuousClock.Instant] = [:]
     /// CPU'nun eşiği kesintisiz aştığı ilk an.
     @ObservationIgnored private var cpuHighSince: ContinuousClock.Instant?
 
@@ -126,6 +132,25 @@ final class AlertEngine {
         evaluateDeviceBatteries(devices, at: now)
     }
 
+    /// Uzak cihaz kendi kaydı elenmiş olmalı. Kayıt 30 dakikadan yeniyse ve pil %10'un altındaysa,
+    /// cihaz başına en fazla saatte bir bildirim gider.
+    func evaluateRemoteBatteries(_ records: [DeviceBatteryRecord]) {
+        guard AppSettings.isAlertEnabled(.lowRemoteBattery) else { return }
+        let now = ContinuousClock.now
+        for record in records {
+            guard Date().timeIntervalSince(record.updatedAt) < Self.remoteBatteryFreshness else { continue }
+            guard record.percent < Self.deviceBatteryThreshold else { continue }
+            guard shouldFireRemote(record.deviceId, at: now) else { continue }
+            let shown = "%\(record.percent)"
+            post(
+                .lowRemoteBattery,
+                title: String(localized: "iCloud cihazının pili azaldı"),
+                body: String(format: String(localized: "%@ pili %@"), record.deviceName, shown),
+                identifier: "lowRemoteBattery.\(record.deviceId)"
+            )
+        }
+    }
+
     private func evaluateDeviceBatteries(_ devices: [DeviceBattery], at now: ContinuousClock.Instant) {
         guard AppSettings.isAlertEnabled(.lowDeviceBattery) else { return }
         for device in devices {
@@ -145,6 +170,14 @@ final class AlertEngine {
             return false
         }
         deviceBatteryFired[id] = now
+        return true
+    }
+
+    private func shouldFireRemote(_ id: String, at now: ContinuousClock.Instant) -> Bool {
+        if let last = remoteBatteryFired[id], last.duration(to: now) < Self.deviceBatteryCooldown {
+            return false
+        }
+        remoteBatteryFired[id] = now
         return true
     }
 

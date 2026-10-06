@@ -63,6 +63,7 @@ final class SamplingEngine {
 
     let connection = ConnectionMonitor()
     let alerts: AlertEngine
+    let cloud: CloudBatterySync
 
     /// Şu anda açık olan paneller. Paneller `panelDidAppear(_:)` /
     /// `panelDidDisappear(_:)` ile günceller.
@@ -108,6 +109,7 @@ final class SamplingEngine {
         let backgroundSampler = BackgroundSampler()
         self.backgroundSampler = backgroundSampler
         alerts = AlertEngine(sampler: backgroundSampler)
+        cloud = CloudBatterySync(alerts: alerts)
         alerts.requestAuthorization()
 
         loop = Task { [weak self] in
@@ -193,7 +195,11 @@ final class SamplingEngine {
     private func updateOpenPanels(_ change: (inout Set<PanelKind>) -> Void) {
         let oldInterval = interval
         let neededProcesses = needsProcesses
+        let systemWasOpen = openPanels.contains(.system)
         change(&openPanels)
+        if openPanels.contains(.system) != systemWasOpen {
+            cloud.setSystemPanelOpen(openPanels.contains(.system))
+        }
 
         if neededProcesses && !needsProcesses {
             // Panel kapalıyken eski liste gösterilmesin ve tekrar açıldığında
@@ -243,6 +249,7 @@ final class SamplingEngine {
         }
         thermal = thermalMonitor.read()
         battery = batteryMonitor.read()
+        cloud.noteLocalBattery(battery)
         let accessories = accessoryBatteryMonitor.read()
         if accessories != accessoryBatteries {
             accessoryBatteries = accessories

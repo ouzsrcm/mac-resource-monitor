@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(AppSettings.Key.showDisk) private var showDisk = true
     @AppStorage(AppSettings.Key.showSystem) private var showSystem = true
     @AppStorage(AppSettings.Key.showDeviceBatteries) private var showDeviceBatteries = true
+    @AppStorage(AppSettings.Key.iCloudBatterySync) private var iCloudBatterySync = true
 
     @AppStorage(AppSettings.Key.idleInterval) private var idleInterval = AppSettings.defaultIdleInterval
     @AppStorage(AppSettings.Key.activeInterval) private var activeInterval = AppSettings.defaultActiveInterval
@@ -60,6 +61,7 @@ struct SettingsView: View {
 
             Section("Sistem paneli") {
                 Toggle("Cihaz pillerini göster", isOn: $showDeviceBatteries)
+                Toggle("iCloud cihaz senkronizasyonu", isOn: $iCloudBatterySync)
             }
 
             Section("Örnekleme") {
@@ -116,6 +118,7 @@ struct SettingsView: View {
         .onChange(of: idleInterval) { engine.samplingSettingsDidChange() }
         .onChange(of: activeInterval) { engine.samplingSettingsDidChange() }
         .onChange(of: showDeviceBatteries) { engine.deviceBatterySettingsDidChange() }
+        .onChange(of: iCloudBatterySync) { engine.cloud.settingsDidChange() }
         .onChange(of: language) { language.apply() }
     }
 
