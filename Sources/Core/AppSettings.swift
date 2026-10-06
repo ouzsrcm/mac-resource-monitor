@@ -71,6 +71,7 @@ enum AppSettings {
         static let showNetwork = "showNetwork"
         static let showDisk = "showDisk"
         static let showSystem = "showSystem"
+        static let showDeviceBatteries = "showDeviceBatteries"
         static let idleInterval = "idleIntervalSeconds"
         static let activeInterval = "activeIntervalSeconds"
         static let diskLabelMode = "diskLabelMode"
@@ -97,6 +98,7 @@ enum AppSettings {
             Key.diskLabelMode: DiskLabelMode.freeSpace.rawValue,
             Key.menuBarLabelStyle: defaultMenuBarLabelStyle.rawValue,
             Key.appLanguage: AppLanguage.system.rawValue,
+            Key.showDeviceBatteries: true,
         ]
         for kind in AlertKind.allCases {
             defaults[Key.alertEnabled(kind)] = true
@@ -116,6 +118,11 @@ enum AppSettings {
 
     static func isAlertEnabled(_ kind: AlertKind) -> Bool {
         UserDefaults.standard.bool(forKey: Key.alertEnabled(kind))
+    }
+
+    /// Sistem panelindeki Bluetooth cihaz pilleri. Varsayılan açık.
+    static var showDeviceBatteries: Bool {
+        UserDefaults.standard.bool(forKey: Key.showDeviceBatteries)
     }
 
     private static func interval(forKey key: String, allowed: [Double], fallback: Double) -> Duration {

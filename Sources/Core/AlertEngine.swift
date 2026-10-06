@@ -9,6 +9,7 @@ enum AlertKind: String, CaseIterable, Identifiable, Sendable {
     case thermal
     case lowDiskSpace
     case lowBattery
+    case lowDeviceBattery
 
     var id: String { rawValue }
 
@@ -19,6 +20,7 @@ enum AlertKind: String, CaseIterable, Identifiable, Sendable {
         case .thermal: String(localized: "Termal durum Sıcak veya Kritik")
         case .lowDiskSpace: String(localized: "Disk boş alanı %10'un altında")
         case .lowBattery: String(localized: "Pil %15'in altında ve şarj olmuyor")
+        case .lowDeviceBattery: String(localized: "Bir cihazın pili %10'un altında")
         }
     }
 }
@@ -33,6 +35,10 @@ final class AlertEngine {
     nonisolated static let cpuSustain: Duration = .seconds(30)
     nonisolated static let diskFreeThreshold = 0.1
     nonisolated static let batteryThreshold = 0.15
+    /// Aksesuar ve kulaklık pili bu yüzdenin altına düşünce bildirim gider.
+    nonisolated static let deviceBatteryThreshold = 10
+    /// Aynı cihaz için bildirimler arasında beklenen süre.
+    nonisolated static let deviceBatteryCooldown: Duration = .seconds(60 * 60)
 
     /// Ayarlar penceresinde uyarı göstermek için; henüz sorulmadıysa nil.
     private(set) var authorizationStatus: UNAuthorizationStatus?
@@ -40,6 +46,8 @@ final class AlertEngine {
     @ObservationIgnored private let sampler: BackgroundSampler
     @ObservationIgnored private let presenter = NotificationPresenter()
     @ObservationIgnored private var lastFired: [AlertKind: ContinuousClock.Instant] = [:]
+    /// Cihaz kimliği başına son düşük pil bildirimi. Ortak 10 dakikalık beklemeden bağımsızdır.
+    @ObservationIgnored private var deviceBatteryFired: [String: ContinuousClock.Instant] = [:]
     /// CPU'nun eşiği kesintisiz aştığı ilk an.
     @ObservationIgnored private var cpuHighSince: ContinuousClock.Instant?
 
@@ -73,7 +81,8 @@ final class AlertEngine {
         memory: MemoryStats?,
         thermal: ProcessInfo.ThermalState?,
         diskSpace: DiskSpace?,
-        battery: BatteryStatus?
+        battery: BatteryStatus?,
+        devices: [DeviceBattery]
     ) {
         let now = ContinuousClock.now
 
@@ -113,6 +122,61 @@ final class AlertEngine {
                  title: String(localized: "Pil azaldı"),
                  body: String(localized: "Pil seviyesi \(Format.percent(battery.level)); güç adaptörünü bağlayın."))
         }
+
+        evaluateDeviceBatteries(devices, at: now)
+    }
+
+    private func evaluateDeviceBatteries(_ devices: [DeviceBattery], at now: ContinuousClock.Instant) {
+        guard AppSettings.isAlertEnabled(.lowDeviceBattery) else { return }
+        for device in devices {
+            let low = device.levels.filter { $0.percent < Self.deviceBatteryThreshold }
+            guard !low.isEmpty, shouldFireDevice(device.id, at: now) else { continue }
+            post(
+                .lowDeviceBattery,
+                title: String(localized: "Cihaz pili azaldı"),
+                body: deviceBatteryBody(name: device.name, low: low),
+                identifier: "lowDeviceBattery.\(device.id)"
+            )
+        }
+    }
+
+    private func shouldFireDevice(_ id: String, at now: ContinuousClock.Instant) -> Bool {
+        if let last = deviceBatteryFired[id], last.duration(to: now) < Self.deviceBatteryCooldown {
+            return false
+        }
+        deviceBatteryFired[id] = now
+        return true
+    }
+
+    /// Örnek: "Magic Mouse pili %8". Birden fazla parça düşükse hepsi aynı bildirimde.
+    private func deviceBatteryBody(name: String, low: [DeviceBattery.Level]) -> String {
+        if low.count == 1, let only = low.first {
+            let shown = "%\(only.percent)"
+            switch only.slot {
+            case .single:
+                return String(format: String(localized: "%@ pili %@"), name, shown)
+            case .left:
+                return String(format: String(localized: "%@ sol kulaklık pili %@"), name, shown)
+            case .right:
+                return String(format: String(localized: "%@ sağ kulaklık pili %@"), name, shown)
+            case .caseBattery:
+                return String(format: String(localized: "%@ kutu pili %@"), name, shown)
+            }
+        }
+        let pieces = low.map { level -> String in
+            let shown = "%\(level.percent)"
+            switch level.slot {
+            case .single:
+                return shown
+            case .left:
+                return String(format: String(localized: "sol %@"), shown)
+            case .right:
+                return String(format: String(localized: "sağ %@"), shown)
+            case .caseBattery:
+                return String(format: String(localized: "kutu %@"), shown)
+            }
+        }.joined(separator: ", ")
+        return String(format: String(localized: "%@ pili %@"), name, pieces)
     }
 
     /// Uyarı açık ve bekleme süresi dolmuşsa true döner ve zamanı kaydeder.
@@ -140,13 +204,14 @@ final class AlertEngine {
         }
     }
 
-    private func post(_ kind: AlertKind, title: String, body: String) {
+    private func post(_ kind: AlertKind, title: String, body: String, identifier: String? = nil) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
         // Tür başına sabit kimlik: aynı türün yeni bildirimi eskisinin yerini alır.
-        let request = UNNotificationRequest(identifier: kind.rawValue, content: content, trigger: nil)
+        // Cihaz pili cihaz kimliğini kullanır; böylece her cihazın bildirimi ayrı kalır.
+        let request = UNNotificationRequest(identifier: identifier ?? kind.rawValue, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
                 Self.logger.error("Bildirim gönderilemedi: \(error.localizedDescription, privacy: .public)")

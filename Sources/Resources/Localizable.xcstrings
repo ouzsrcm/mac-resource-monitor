@@ -1,14 +1,47 @@
 {
   "sourceLanguage" : "tr",
   "strings" : {
+    "/ %@" : {
+      "shouldTranslate" : false
+    },
     "%@" : {
       "shouldTranslate" : false
     },
     "%@ %@" : {
       "shouldTranslate" : false
     },
+    "%@ kutu pili %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ case battery %2$@"
+          }
+        }
+      }
+    },
+    "%@ pili %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ battery %2$@"
+          }
+        }
+      }
+    },
     "%@ R %@ W %@" : {
       "shouldTranslate" : false
+    },
+    "%@ sağ kulaklık pili %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ right earbud battery %2$@"
+          }
+        }
+      }
     },
     "%@ sn" : {
       "localizations" : {
@@ -16,6 +49,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ s"
+          }
+        }
+      }
+    },
+    "%@ sol kulaklık pili %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ left earbud battery %2$@"
           }
         }
       }
@@ -40,8 +83,18 @@
         }
       }
     },
-    "/ %@" : {
-      "shouldTranslate" : false
+    "%lld%%" : {
+
+    },
+    "Açılıştan beri" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since launch"
+          }
+        }
+      }
     },
     "Adaptöre bağlı" : {
       "localizations" : {
@@ -49,6 +102,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plugged in"
+          }
+        }
+      }
+    },
+    "Ağ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
           }
         }
       }
@@ -69,26 +132,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Settings…"
-          }
-        }
-      }
-    },
-    "Açılıştan beri" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Since launch"
-          }
-        }
-      }
-    },
-    "Ağ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Network"
           }
         }
       }
@@ -163,6 +206,36 @@
         }
       }
     },
+    "Bir cihazın pili %10'un altında" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A device battery is below 10%"
+          }
+        }
+      }
+    },
+    "Bluetooth cihazı" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth device"
+          }
+        }
+      }
+    },
+    "boş / %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "free of %@"
+          }
+        }
+      }
+    },
     "Boş alan" : {
       "localizations" : {
         "en" : {
@@ -173,12 +246,82 @@
         }
       }
     },
+    "Çekirdek %lld: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core %1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "Çekirdekler" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cores"
+          }
+        }
+      }
+    },
+    "Cihaz pili azaldı" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device battery is low"
+          }
+        }
+      }
+    },
+    "Cihaz pillerini göster" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show device batteries"
+          }
+        }
+      }
+    },
+    "Cihazlar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
+          }
+        }
+      }
+    },
+    "Çıkış" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
     "CPU 30 sn boyunca %90'ın üzerinde" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "CPU above 90% for 30 seconds"
+          }
+        }
+      }
+    },
+    "Diğer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
           }
         }
       }
@@ -243,16 +386,6 @@
         }
       }
     },
-    "Diğer" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Other"
-          }
-        }
-      }
-    },
     "Durum" : {
       "localizations" : {
         "en" : {
@@ -263,22 +396,22 @@
         }
       }
     },
-    "En çok CPU kullananlar" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Top CPU consumers"
-          }
-        }
-      }
-    },
     "En çok bellek kullananlar" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Top memory consumers"
+          }
+        }
+      }
+    },
+    "En çok CPU kullananlar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top CPU consumers"
           }
         }
       }
@@ -323,8 +456,15 @@
         }
       }
     },
-    "IPv4" : {
-      "shouldTranslate" : false
+    "İkon ve değer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icon and value"
+          }
+        }
+      }
     },
     "Ilık" : {
       "localizations" : {
@@ -332,6 +472,49 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Warm"
+          }
+        }
+      }
+    },
+    "İndirilen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaded"
+          }
+        }
+      }
+    },
+    "İndirme" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        }
+      }
+    },
+    "IPv4" : {
+      "shouldTranslate" : false
+    },
+    "İşlemci" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        }
+      }
+    },
+    "İşlemci 30 saniyedir %90'ın üzerinde." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU has been above 90% for 30 seconds."
           }
         }
       }
@@ -376,22 +559,32 @@
         }
       }
     },
+    "Kutu" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Case"
+          }
+        }
+      }
+    },
+    "kutu %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "case %@"
+          }
+        }
+      }
+    },
     "Mac ısınıyor" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Mac is heating up"
-          }
-        }
-      }
-    },
-    "MenuMonitor: %%%@ CPU · %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MenuMonitor: %1$@%% CPU · %2$@"
           }
         }
       }
@@ -412,6 +605,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In menu bar"
+          }
+        }
+      }
+    },
+    "MenuMonitor: %%%@ CPU · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MenuMonitor: %1$@%% CPU · %2$@"
           }
         }
       }
@@ -446,6 +649,16 @@
         }
       }
     },
+    "Ölçülüyor…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Measuring…"
+          }
+        }
+      }
+    },
     "Oran" : {
       "localizations" : {
         "en" : {
@@ -456,15 +669,12 @@
         }
       }
     },
-    "PID %d" : {
-      "shouldTranslate" : false
-    },
-    "PID'i kopyala" : {
+    "Örnekleme" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy PID"
+            "value" : "Sampling"
           }
         }
       }
@@ -495,6 +705,19 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Performance (P)"
+          }
+        }
+      }
+    },
+    "PID %d" : {
+      "shouldTranslate" : false
+    },
+    "PID'i kopyala" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy PID"
           }
         }
       }
@@ -535,6 +758,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Battery level is %@; connect the power adapter."
+          }
+        }
+      }
+    },
+    "Sağ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right"
+          }
+        }
+      }
+    },
+    "sağ %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "right %@"
+          }
+        }
+      }
+    },
+    "Şarj oluyor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charging"
           }
         }
       }
@@ -599,12 +852,12 @@
         }
       }
     },
-    "Swap kullanılıyor, RAM yetersiz kalabilir" : {
+    "Sistem paneli" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swap in use; RAM may be running low"
+            "value" : "System panel"
           }
         }
       }
@@ -625,6 +878,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Compressed"
+          }
+        }
+      }
+    },
+    "Sol" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Left"
+          }
+        }
+      }
+    },
+    "sol %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "left %@"
+          }
+        }
+      }
+    },
+    "Swap kullanılıyor, RAM yetersiz kalabilir" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap in use; RAM may be running low"
           }
         }
       }
@@ -805,126 +1088,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Time"
-          }
-        }
-      }
-    },
-    "boş / %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "free of %@"
-          }
-        }
-      }
-    },
-    "Çekirdek %lld: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Core %1$lld: %2$@"
-          }
-        }
-      }
-    },
-    "Çekirdekler" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cores"
-          }
-        }
-      }
-    },
-    "Çıkış" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quit"
-          }
-        }
-      }
-    },
-    "Ölçülüyor…" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Measuring…"
-          }
-        }
-      }
-    },
-    "Örnekleme" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sampling"
-          }
-        }
-      }
-    },
-    "İkon ve değer" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Icon and value"
-          }
-        }
-      }
-    },
-    "İndirilen" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloaded"
-          }
-        }
-      }
-    },
-    "İndirme" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Download"
-          }
-        }
-      }
-    },
-    "İşlemci" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU"
-          }
-        }
-      }
-    },
-    "İşlemci 30 saniyedir %90'ın üzerinde." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CPU has been above 90% for 30 seconds."
-          }
-        }
-      }
-    },
-    "Şarj oluyor" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charging"
           }
         }
       }

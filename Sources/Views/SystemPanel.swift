@@ -3,6 +3,8 @@ import SwiftUI
 struct SystemPanel: View {
     let engine: SamplingEngine
 
+    @AppStorage(AppSettings.Key.showDeviceBatteries) private var showDeviceBatteries = true
+
     var body: some View {
         PanelContainer(title: "Sistem", kind: .system, engine: engine) {
             HStack {
@@ -14,6 +16,11 @@ struct SystemPanel: View {
 
             if let battery = engine.battery {
                 BatterySection(battery: battery)
+            }
+
+            if showDeviceBatteries, !engine.deviceBatteries.isEmpty {
+                Divider()
+                DeviceBatterySection(devices: engine.deviceBatteries)
             }
         }
     }

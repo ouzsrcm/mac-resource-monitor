@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage(AppSettings.Key.showNetwork) private var showNetwork = true
     @AppStorage(AppSettings.Key.showDisk) private var showDisk = true
     @AppStorage(AppSettings.Key.showSystem) private var showSystem = true
+    @AppStorage(AppSettings.Key.showDeviceBatteries) private var showDeviceBatteries = true
 
     @AppStorage(AppSettings.Key.idleInterval) private var idleInterval = AppSettings.defaultIdleInterval
     @AppStorage(AppSettings.Key.activeInterval) private var activeInterval = AppSettings.defaultActiveInterval
@@ -55,6 +56,10 @@ struct SettingsView: View {
             } footer: {
                 Text("Uygulama Dock'ta görünmediği için en az bir öğe açık kalmalı.")
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Sistem paneli") {
+                Toggle("Cihaz pillerini göster", isOn: $showDeviceBatteries)
             }
 
             Section("Örnekleme") {
@@ -110,6 +115,7 @@ struct SettingsView: View {
         }
         .onChange(of: idleInterval) { engine.samplingSettingsDidChange() }
         .onChange(of: activeInterval) { engine.samplingSettingsDidChange() }
+        .onChange(of: showDeviceBatteries) { engine.deviceBatterySettingsDidChange() }
         .onChange(of: language) { language.apply() }
     }
 
